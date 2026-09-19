@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import AlertPanel, { label } from './components/AlertPanel';
+import { useEffect, useState } from 'react';
+import AlertPanel from './components/AlertPanel';
 import Controls, { type Endpoint } from './components/Controls';
 import Directions from './components/Directions';
 // Imported as MapView: `Map` would shadow the global Map constructor.
@@ -27,10 +27,9 @@ export default function App() {
     avoidStairs: true,
     avoidSteep: false,
   });
-  const [toast, setToast] = useState<Report | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
+  const [show3D, setShow3D] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
-  const seen = useRef<Set<string> | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
   // sitting in the JS bundle.
@@ -46,22 +45,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
-
-  // Announce barriers that arrived after this client loaded. The first payload
-  // seeds the baseline, so opening the page mid-demo does not fire five toasts.
-  useEffect(() => {
-    if (seen.current === null) {
-      seen.current = new Set(reports.map((r) => r.edge_id));
-      return;
-    }
-    const fresh = reports.find((r) => !seen.current!.has(r.edge_id));
-    seen.current = new Set(reports.map((r) => r.edge_id));
-    if (!fresh) return;
-
-    setToast(fresh);
-    const t = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(t);
-  }, [reports]);
 
   const graph = campus ? buildGraph(campus, reports, prefs) : null;
   const route =
@@ -99,6 +82,7 @@ export default function App() {
         from={from ? graph.nodes.get(from.nodeId) : undefined}
         to={to ? graph.nodes.get(to.nodeId) : undefined}
         theme={theme}
+        show3D={show3D}
         onPickEdge={setPicked}
       />
 
@@ -126,6 +110,8 @@ export default function App() {
           onFrom={setFrom}
           onTo={setTo}
           onPrefs={setPrefs}
+          show3D={show3D}
+          onShow3D={setShow3D}
         />
 
         {picked && (
@@ -168,16 +154,6 @@ export default function App() {
           </span>
         )}
       </div>
-
-      {toast && (
-        <div className="toast" key={toast.edge_id}>
-          <span className="toast-kind">{label(toast.type)}</span>
-          <span className="toast-body">
-            {toast.note ? toast.note : `Reported on ${toast.edge_id}`} &mdash;
-            rerouting
-          </span>
-        </div>
-      )}
     </div>
   );
 }

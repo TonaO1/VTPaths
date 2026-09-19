@@ -200,6 +200,8 @@ interface Props {
   onFrom: (endpoint: Endpoint | null) => void;
   onTo: (endpoint: Endpoint | null) => void;
   onPrefs: (prefs: Prefs) => void;
+  show3D: boolean;
+  onShow3D: (show3D: boolean) => void;
 }
 
 export default function Controls({
@@ -211,6 +213,8 @@ export default function Controls({
   onFrom,
   onTo,
   onPrefs,
+  show3D,
+  onShow3D,
 }: Props) {
   return (
     <div className="panel controls">
@@ -247,6 +251,14 @@ export default function Controls({
           onClick={() => onPrefs({ ...prefs, avoidSteep: !prefs.avoidSteep })}
         >
           No steep grades
+        </button>
+        <button
+          type="button"
+          className={show3D ? 'chip chip-on' : 'chip'}
+          aria-pressed={show3D}
+          onClick={() => onShow3D(!show3D)}
+        >
+          3D buildings
         </button>
       </div>
 

@@ -33,6 +33,7 @@ interface Props {
   from?: Node;
   to?: Node;
   theme: Theme;
+  show3D: boolean;
   onPickEdge: (edgeId: string) => void;
 }
 
@@ -76,6 +77,7 @@ export default function Map({
   from,
   to,
   theme,
+  show3D,
   onPickEdge,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
@@ -240,6 +242,36 @@ export default function Map({
     const source = m?.getSource('network') as mapboxgl.GeoJSONSource | undefined;
     source?.setData(toLines(edges, reports));
   }, [edges, reports, ready]);
+
+  // Layers do not survive setStyle, same as network/route above, so this
+  // re-adds on every style reload rather than once.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+
+    if (show3D) {
+      if (!m.getLayer('buildings-3d')) {
+        m.addLayer({
+          id: 'buildings-3d',
+          source: 'composite',
+          'source-layer': 'building',
+          filter: ['==', ['get', 'extrude'], 'true'],
+          type: 'fill-extrusion',
+          minzoom: 15,
+          paint: {
+            'fill-extrusion-color': '#861f41',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 0.6,
+          },
+        });
+      }
+      m.easeTo({ pitch: 45, duration: 500 });
+    } else {
+      if (m.getLayer('buildings-3d')) m.removeLayer('buildings-3d');
+      m.easeTo({ pitch: 0, duration: 500 });
+    }
+  }, [show3D, ready]);
 
   useEffect(() => {
     const m = map.current;
