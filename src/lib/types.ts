@@ -44,6 +44,8 @@ export interface Report {
   type: ReportType;
   /** 1 on first report, incremented by each confirm. 2 or more disables the edge. */
   count: number;
+  /** Optional free-text detail from the reporter. Capped client side. */
+  note?: string | null;
   created_at: string;
 }
 

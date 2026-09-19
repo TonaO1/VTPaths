@@ -21,8 +21,15 @@ exception
   when duplicate_object then null;
 end $$;
 
-create or replace function confirm_report(p_edge text, p_type text)
+alter table reports add column if not exists note text;
+
+-- The old two-argument version would otherwise linger and shadow this one.
+drop function if exists confirm_report(text, text);
+
+create or replace function confirm_report(p_edge text, p_type text, p_note text default null)
 returns void language sql as $$
-  insert into reports (edge_id, type) values (p_edge, p_type)
-  on conflict (edge_id) do update set count = reports.count + 1;
+  insert into reports (edge_id, type, note) values (p_edge, p_type, p_note)
+  on conflict (edge_id) do update
+    set count = reports.count + 1,
+        note = coalesce(excluded.note, reports.note);
 $$;
