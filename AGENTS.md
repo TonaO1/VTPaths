@@ -59,6 +59,18 @@ root:
 5. **No new dependencies without asking.** The stack is fixed and install time
    is not free during a 12-hour build.
 
+## Programming paradigms
+
+- **If a problem can be solved without a new library, package, or extension,
+  solve it that way.** The standard library, the browser platform, and the
+  four deps already in the stack cover more than it looks like they do. A
+  hand-written 30-line Dijkstra beats pulling in a graph library.
+- **Write the simplest, most concise code that works.** Fewest moving parts,
+  fewest layers, fewest concepts a teammate has to hold in their head at 3 AM.
+- No abstraction for a second use case that does not exist. No config objects
+  with one caller. No wrapper around a function that is already the right shape.
+- Concise is not the same as clever. Short and obvious beats short and dense.
+
 ## Code conventions
 
 - TypeScript, strict. No `any`. Prefer explicit return types on exported
@@ -91,7 +103,14 @@ Minimum coverage:
 
 ## Git
 
-- Work on `main`. Branches cost more than they save at this timescale.
+- **Never commit directly to `main`.** Every change goes on a branch named for
+  its track (`data/...`, `routing/...`, `ui/...`, `setup/...`, `fix/...`).
+- **Check the current branch before every edit.** `git branch --show-current`.
+  An edit made on the wrong branch is worse than a slow edit.
+- Open a PR for every branch. Keep the description to what changed and what to
+  look at.
+- **Never merge to `main` without the repo owner's explicit permission.** Not
+  even a green PR, not even a one-line fix. Ask, then merge.
 - Commit early and often. Small commits, present-tense messages.
 - Never commit `.env.local`.
 - Never force push.
