@@ -285,10 +285,22 @@ button.theme:hover {
   bottom: 12rem;
 }
 
+/* Line the zoom stack up with the compass button: same width, same right
+   edge, so the three controls share one vertical axis. */
+.mapboxgl-ctrl-bottom-right {
+  right: 1.5rem;
+  bottom: 1.5rem;
+}
+
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0;
+}
+
 .mapboxgl-ctrl-group {
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   overflow: hidden;
 }
+
 
 /* ---------- the readout ---------- */
 
@@ -639,14 +651,16 @@ button.reset:hover {
 button.fit {
   position: absolute;
   right: 1.5rem;
-  bottom: 7.5rem;
+  bottom: 6.25rem;
   z-index: 3;
-  font: inherit;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.65rem 1rem;
-  border-radius: 999px;
+  display: grid;
+  place-content: center;
+  /* Mapbox's control group is 29px plus a 1px border either side. Matching its
+     outer width puts the compass on exactly the same vertical axis. */
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
   border: 1px solid var(--edge);
   background: var(--panel);
   backdrop-filter: blur(18px);
@@ -745,4 +759,27 @@ button.close {
     position: static;
     margin-top: 0.5rem;
   }
+}
+
+input.search {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.6rem;
+  color: var(--ink);
+  background: rgba(127, 127, 127, 0.08);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+}
+
+input.search:focus-visible {
+  outline: 2px solid var(--maroon-lift);
+}
+
+.hint {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
 }

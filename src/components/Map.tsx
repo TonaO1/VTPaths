@@ -92,6 +92,7 @@ export default function Map({
   // first route arrives before the source does, the effect bails, and no line
   // is ever drawn until the user happens to change a dropdown again.
   const [ready, setReady] = useState(false);
+  const applied = useRef<Theme>('light');
 
   useEffect(() => {
     if (!MAPBOX_TOKEN) {
@@ -195,7 +196,7 @@ export default function Map({
       // zoom instead, so the click feels the same at every scale.
       const metresPerPixel =
         (156543.03392 * Math.cos((ev.lngLat.lat * Math.PI) / 180)) /
-        2 ** (m.getZoom() + 8);
+        2 ** m.getZoom();
       const radius = Math.min(Math.max(TAP_RADIUS_PX * metresPerPixel, 8), 120);
 
       const hit = nearestEdge([ev.lngLat.lng, ev.lngLat.lat], graph.current, radius);
@@ -224,11 +225,14 @@ export default function Map({
 
   useEffect(() => {
     const m = map.current;
-    if (!m || !ready) return;
-    const wanted = STYLES[theme];
-    if (m.getStyle()?.name?.toLowerCase().includes(theme)) return;
+    if (!m || !ready || applied.current === theme) return;
+    // Track the applied theme explicitly. Sniffing m.getStyle().name does not
+    // work - streets-v12 is called "Mapbox Streets", which never contains the
+    // word "light" - so the guard never fired and the map restyled forever,
+    // wiping its layers on every pass and rendering nothing.
+    applied.current = theme;
     setReady(false);
-    m.setStyle(wanted);
+    m.setStyle(STYLES[theme]);
   }, [theme, ready]);
 
   useEffect(() => {
@@ -296,8 +300,11 @@ export default function Map({
   return (
     <>
       <div ref={container} className="map" />
-      <button className="fit" onClick={fitCampus}>
-        Whole campus
+      <button className="fit" onClick={fitCampus} title="Zoom to the whole campus" aria-label="Zoom to the whole campus">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M15.4 8.6 10.9 10.9 8.6 15.4 13.1 13.1z" fill="currentColor" />
+        </svg>
       </button>
       <div className="legend panel">
         <span><i className="sw sw-route" />Route</span>

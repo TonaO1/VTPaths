@@ -10,6 +10,45 @@ interface Props {
   onPrefs: (prefs: Prefs) => void;
 }
 
+// Typeahead with a native <datalist>: the browser filters as you type, so there
+// is no combobox dependency and no keyboard handling to get wrong. The visible
+// value is the building name; the id is resolved on change.
+function Field({
+  label,
+  dot,
+  value,
+  buildings,
+  onChange,
+}: {
+  label: string;
+  dot: string;
+  value: string;
+  buildings: { id: string; name: string }[];
+  onChange: (id: string) => void;
+}) {
+  const current = buildings.find((b) => b.id === value)?.name ?? '';
+
+  return (
+    <div className="field">
+      <span className={`dot ${dot}`} />
+      <input
+        type="text"
+        className="search"
+        list="vtpaths-buildings"
+        placeholder={label}
+        aria-label={label}
+        defaultValue={current}
+        key={current}
+        onChange={(e) => {
+          const match = buildings.find((b) => b.name === e.target.value);
+          if (match) onChange(match.id);
+          else if (e.target.value === '') onChange('');
+        }}
+      />
+    </div>
+  );
+}
+
 export default function Controls({
   buildings,
   from,
@@ -19,29 +58,28 @@ export default function Controls({
   onTo,
   onPrefs,
 }: Props) {
-  const options = buildings.map((b) => (
-    <option key={b.id} value={b.id}>
-      {b.name}
-    </option>
-  ));
-
   return (
     <div className="panel controls">
-      <div className="field">
-        <span className="dot dot-start" />
-        <select value={from} onChange={(e) => onFrom(e.target.value)}>
-          <option value="">Starting point</option>
-          {options}
-        </select>
-      </div>
+      <datalist id="vtpaths-buildings">
+        {buildings.map((b) => (
+          <option key={b.id} value={b.name} />
+        ))}
+      </datalist>
 
-      <div className="field">
-        <span className="dot dot-end" />
-        <select value={to} onChange={(e) => onTo(e.target.value)}>
-          <option value="">Destination</option>
-          {options}
-        </select>
-      </div>
+      <Field
+        label="Search a starting point"
+        dot="dot-start"
+        value={from}
+        buildings={buildings}
+        onChange={onFrom}
+      />
+      <Field
+        label="Search a destination"
+        dot="dot-end"
+        value={to}
+        buildings={buildings}
+        onChange={onTo}
+      />
 
       <div className="toggles">
         <button
@@ -61,6 +99,10 @@ export default function Controls({
           No steep grades
         </button>
       </div>
+
+      <p className="hint">
+        Or click any path on the map to report a barrier there.
+      </p>
     </div>
   );
 }
