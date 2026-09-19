@@ -1,4 +1,4 @@
-import type { Edge } from './types';
+import type { Edge, Node } from './types';
 
 type Coord = [number, number];
 
@@ -55,6 +55,32 @@ export function nearestEdge(
         bestDistance = d;
         best = edge;
       }
+    }
+  }
+
+  return best;
+}
+
+/**
+ * The routable node closest to a point, or null if the nearest is further than
+ * `withinMetres`. Used to attach a geocoded place - which can be anywhere in
+ * Blacksburg - to the accessible path network.
+ */
+export function nearestNode(
+  point: Coord,
+  nodes: Iterable<Node>,
+  withinMetres = 150,
+): Node | null {
+  let best: Node | null = null;
+  let bestDistance = withinMetres;
+
+  for (const node of nodes) {
+    const [px, py] = toPlane(point);
+    const [nx, ny] = toPlane([node.lon, node.lat]);
+    const d = Math.hypot(px - nx, py - ny);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = node;
     }
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nearestEdge } from './nearest';
+import { nearestEdge, nearestNode } from './nearest';
 import type { Edge } from './types';
 
 function edge(id: string, coords: [number, number][]): Edge {
@@ -47,5 +47,31 @@ describe('nearestEdge', () => {
 
   it('returns null for an empty graph', () => {
     expect(nearestEdge([-80.419, 37.22], [])).toBeNull();
+  });
+});
+
+describe('nearestNode', () => {
+  const nodes = [
+    { id: 'N1', lon: -80.42, lat: 37.22 },
+    { id: 'N2', lon: -80.418, lat: 37.22 },
+  ];
+
+  it('finds the closest node', () => {
+    expect(nearestNode([-80.4199, 37.22], nodes)?.id).toBe('N1');
+    expect(nearestNode([-80.4181, 37.22], nodes)?.id).toBe('N2');
+  });
+
+  it('returns null when everything is too far', () => {
+    expect(nearestNode([-80.42, 37.25], nodes)).toBeNull();
+  });
+
+  it('honours the radius', () => {
+    // ~89 m away at this latitude.
+    expect(nearestNode([-80.419, 37.22], nodes, 150)).not.toBeNull();
+    expect(nearestNode([-80.419, 37.22], nodes, 50)).toBeNull();
+  });
+
+  it('handles an empty graph', () => {
+    expect(nearestNode([-80.42, 37.22], [])).toBeNull();
   });
 });
