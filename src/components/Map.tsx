@@ -15,18 +15,26 @@ type LineFeature = {
   geometry: { type: 'LineString'; coordinates: [number, number][] };
 };
 
+export const STYLES = {
+  dark: 'mapbox://styles/mapbox/dark-v11',
+  light: 'mapbox://styles/mapbox/streets-v12',
+} as const;
+
+export type Theme = keyof typeof STYLES;
+
 interface Props {
   edges: Edge[];
   route: RouteResult | null;
   reports: Report[];
   from?: Node;
   to?: Node;
+  theme: Theme;
 }
 
 // Mapbox canvas: base network, the current route, and start/end markers.
 // No MapLibre fallback yet if the token is bad — logged loudly instead, per
 // AGENTS.md error handling (known escape hatch, not built to save the dep).
-export default function Map({ edges, route, reports, from, to }: Props) {
+export default function Map({ edges, route, reports, from, to, theme }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const startMarker = useRef<mapboxgl.Marker | null>(null);
@@ -45,13 +53,18 @@ export default function Map({ edges, route, reports, from, to }: Props) {
 
     const m = new mapboxgl.Map({
       container: container.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: STYLES.dark,
       center: VT_CENTER,
       zoom: 16,
     });
     map.current = m;
 
-    m.on('load', () => {
+    m.addControl(
+      new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false }),
+      'bottom-right',
+    );
+
+    function addLayers(m: mapboxgl.Map) {
       m.addSource('network', { type: 'geojson', data: toLines(edges, reports) });
       m.addLayer({
         id: 'network',
@@ -80,14 +93,16 @@ export default function Map({ edges, route, reports, from, to }: Props) {
       });
 
       setReady(true);
-    });
+    }
+
+    m.on('style.load', () => addLayers(m));
 
     // The map now fills the viewport, and Mapbox sizes its canvas once at
     // construction. Without this it paints only the rectangle it was born
     // with and leaves the rest of the screen blank.
     const resize = new ResizeObserver(() => m.resize());
     resize.observe(container.current);
-    m.on('load', () => m.resize());
+    m.once('load', () => m.resize());
 
     return () => {
       resize.disconnect();
@@ -99,6 +114,16 @@ export default function Map({ edges, route, reports, from, to }: Props) {
     // effects below via setData rather than re-creating the map.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    if (m.getStyle()?.sprite?.includes(theme === 'dark' ? 'dark' : 'streets')) return;
+    // Sources and layers do not survive setStyle; style.load re-adds them and
+    // the data effects below refill them when `ready` flips back to true.
+    setReady(false);
+    m.setStyle(STYLES[theme]);
+  }, [theme, ready]);
 
   useEffect(() => {
     const m = map.current;

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import AlertPanel, { label } from './components/AlertPanel';
 import Controls from './components/Controls';
-import Map from './components/Map';
+import Directions from './components/Directions';
+import Map, { type Theme } from './components/Map';
 import campusUrl from './data/campus.geojson?url';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
 import { clearAllReports, subscribeReports } from './lib/reports';
 import { findRoute } from './lib/route';
 import { supabase } from './lib/supabase';
+import { feet } from './lib/directions';
 import { useCountUp } from './lib/useCountUp';
 import type { Prefs, Report } from './lib/types';
 
@@ -23,6 +25,7 @@ export default function App() {
     avoidSteep: false,
   });
   const [toast, setToast] = useState<Report | null>(null);
+  const [theme, setTheme] = useState<Theme>('dark');
   const seen = useRef<Set<string> | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
@@ -35,6 +38,10 @@ export default function App() {
   }, []);
 
   useEffect(() => subscribeReports(setReports), []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   // Announce barriers that arrived after this client loaded. The first payload
   // seeds the baseline, so opening the page mid-demo does not fire five toasts.
@@ -78,12 +85,22 @@ export default function App() {
         reports={reports}
         from={from ? graph.nodes.get(from) : undefined}
         to={to ? graph.nodes.get(to) : undefined}
+        theme={theme}
       />
 
       <div className="stack stack-left">
         <header className="brand">
-          <h1>VTPaths</h1>
-          <p>Step-free routing, updated by students</p>
+          <div>
+            <h1>VTPaths</h1>
+            <p>Step-free routing, updated by students</p>
+          </div>
+          <button
+            className="theme"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} map`}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? 'Light' : 'Dark'}
+          </button>
         </header>
 
         <Controls
@@ -95,6 +112,8 @@ export default function App() {
           onTo={setTo}
           onPrefs={setPrefs}
         />
+
+        {route && <Directions route={route} />}
       </div>
 
       <div className="stack stack-right">
@@ -111,7 +130,8 @@ export default function App() {
             <span className="distance">{Math.round(metres)}</span>
             <span className="unit">m</span>
             <span className="sub">
-              {route.edgeIds.length} segments &middot; step-free
+              {Math.round(feet(metres))} ft &middot; {route.edgeIds.length}{' '}
+              segments &middot; step-free
             </span>
           </>
         ) : (
