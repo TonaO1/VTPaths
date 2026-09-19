@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import { buildGraph, type CampusGeoJSON } from './graph';
+import { findRoute } from './route';
+import type { Prefs, Report } from './types';
+
+// Hand-written, deliberately not campus.geojson.
+//
+//   A --- direct (100 m, stairs) --- B
+//   A -- ac (60) -- C -- cb (60) -- B
+//   D --- de (10) --- E             (a separate island)
+const fixture: CampusGeoJSON = {
+  type: 'FeatureCollection',
+  features: [
+    ...['A', 'B', 'C', 'D', 'E'].map((id, i) => ({
+      geometry: { type: 'Point' as const, coordinates: [i, 0] as [number, number] },
+      properties: { id },
+    })),
+    {
+      geometry: { type: 'LineString' as const, coordinates: [[0, 0], [1, 0]] as [number, number][] },
+      properties: { id: 'direct', from: 'A', to: 'B', length: 100, steep: false, has_stairs: true },
+    },
+    {
+      geometry: { type: 'LineString' as const, coordinates: [[0, 0], [2, 0]] as [number, number][] },
+      properties: { id: 'ac', from: 'A', to: 'C', length: 60, steep: false, has_stairs: false },
+    },
+    {
+      geometry: { type: 'LineString' as const, coordinates: [[2, 0], [1, 0]] as [number, number][] },
+      properties: { id: 'cb', from: 'C', to: 'B', length: 60, steep: true, has_stairs: false },
+    },
+    {
+      geometry: { type: 'LineString' as const, coordinates: [[3, 0], [4, 0]] as [number, number][] },
+      properties: { id: 'de', from: 'D', to: 'E', length: 10, steep: false, has_stairs: false },
+    },
+  ],
+};
+
+const allowAll: Prefs = { avoidStairs: false, avoidSteep: false };
+const noStairs: Prefs = { avoidStairs: true, avoidSteep: false };
+
+function route(prefs: Prefs, reports: Report[] = [], from = 'A', to = 'B') {
+  return findRoute(buildGraph(fixture, reports, prefs), from, to);
+}
+
+function report(edge_id: string, count: number): Report {
+  return { edge_id, type: 'blocked', count, created_at: '' };
+}
+
+describe('findRoute', () => {
+  it('takes the shortest path', () => {
+    expect(route(allowAll)).toMatchObject({ edgeIds: ['direct'], distance: 100 });
+  });
+
+  it('avoidStairs forces the longer path', () => {
+    expect(route(noStairs)).toMatchObject({ edgeIds: ['ac', 'cb'], distance: 120 });
+  });
+
+  it('avoidSteep rules out the steep leg', () => {
+    const prefs: Prefs = { avoidStairs: true, avoidSteep: true };
+    expect(route(prefs)).toBeNull();
+  });
+
+  it('avoids a reported edge', () => {
+    expect(route(allowAll, [report('direct', 1)])).toMatchObject({
+      edgeIds: ['ac', 'cb'],
+    });
+  });
+
+  it('two reports make an edge impassable', () => {
+    const graph = buildGraph(fixture, [report('direct', 2)], allowAll);
+    expect(graph.adjacency.get('A')?.some((n) => n.edgeId === 'direct')).toBe(false);
+  });
+
+  it('still uses a reported edge when the detour is worse', () => {
+    expect(route(allowAll, [report('ac', 1), report('direct', 1)])).toMatchObject({
+      edgeIds: ['direct'],
+    });
+  });
+
+  it('returns null when no path exists', () => {
+    expect(route(allowAll, [], 'A', 'E')).toBeNull();
+  });
+
+  it('returns null for an unknown node', () => {
+    expect(route(allowAll, [], 'A', 'ZZ')).toBeNull();
+  });
+
+  it('orients geometry along the direction of travel', () => {
+    // cb is stored C->B; walking A->C->B must not emit it reversed.
+    expect(route(noStairs)?.coords).toEqual([[0, 0], [2, 0], [2, 0], [1, 0]]);
+  });
+});
