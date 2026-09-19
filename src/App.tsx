@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AlertPanel from './components/AlertPanel';
 import Controls from './components/Controls';
+import MapView from './components/Map';
 import campusUrl from './data/campus.geojson?url';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
 import { clearAllReports, subscribeReports } from './lib/reports';
@@ -55,6 +56,8 @@ export default function App() {
         onTo={setTo}
         onPrefs={setPrefs}
       />
+
+      <MapView campus={campus} graph={graph} route={route} reports={reports} />
 
       <section className="route">
         {!from || !to ? (

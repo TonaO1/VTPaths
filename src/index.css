@@ -160,3 +160,26 @@ button:disabled {
   padding: 1.1rem;
   font-size: 1.1rem;
 }
+
+.map,
+.map-missing {
+  height: 60vh;
+  min-height: 420px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.map-missing {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+/* Mapbox ships light-themed controls that vanish on this background. */
+.mapboxgl-ctrl-attrib {
+  font-size: 11px;
+}
