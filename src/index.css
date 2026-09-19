@@ -92,6 +92,20 @@ input[type='checkbox'] {
   accent-color: var(--accent);
 }
 
+.map {
+  height: 440px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.map-disabled {
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  color: var(--muted);
+}
+
 .route p {
   margin: 0;
   font-size: 1.35rem;

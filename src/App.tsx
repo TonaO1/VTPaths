@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AlertPanel from './components/AlertPanel';
 import Controls from './components/Controls';
+import Map from './components/Map';
 import campusUrl from './data/campus.geojson?url';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
 import { clearAllReports, subscribeReports } from './lib/reports';
@@ -54,6 +55,14 @@ export default function App() {
         onFrom={setFrom}
         onTo={setTo}
         onPrefs={setPrefs}
+      />
+
+      <Map
+        edges={[...graph.edges.values()]}
+        route={route}
+        reports={reports}
+        from={from ? graph.nodes.get(from) : undefined}
+        to={to ? graph.nodes.get(to) : undefined}
       />
 
       <section className="route">
