@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import AlertPanel, { label } from './components/AlertPanel';
-import Controls from './components/Controls';
+import { useEffect, useState } from 'react';
+import AlertPanel from './components/AlertPanel';
+import Controls, { type Endpoint } from './components/Controls';
 import Directions from './components/Directions';
-import Map, { type Theme } from './components/Map';
+// Imported as MapView: `Map` would shadow the global Map constructor.
+import MapView, { type Theme } from './components/Map';
+import ReportPopover from './components/ReportPopover';
 import campusUrl from './data/campus.geojson?url';
+import { largestComponent } from './lib/components';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
-import { clearAllReports, subscribeReports } from './lib/reports';
+import { clearAllReports, submitReport, subscribeReports } from './lib/reports';
 import { findRoute } from './lib/route';
 import { supabase } from './lib/supabase';
 import { feet } from './lib/directions';
 import { useCountUp } from './lib/useCountUp';
-import type { Prefs, Report } from './lib/types';
+import type { Prefs, Report, ReportType } from './lib/types';
 
 // Owns all state. Everything below is a pure function of props: a report lands,
 // `reports` changes, the graph is rebuilt, the route is recomputed, the map
@@ -18,16 +21,15 @@ import type { Prefs, Report } from './lib/types';
 export default function App() {
   const [campus, setCampus] = useState<CampusGeoJSON | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState<Endpoint | null>(null);
+  const [to, setTo] = useState<Endpoint | null>(null);
   const [prefs, setPrefs] = useState<Prefs>({
     avoidStairs: true,
     avoidSteep: false,
   });
-  const [toast, setToast] = useState<Report | null>(null);
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
   const [show3D, setShow3D] = useState(false);
-  const seen = useRef<Set<string> | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
   // sitting in the JS bundle.
@@ -44,24 +46,9 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  // Announce barriers that arrived after this client loaded. The first payload
-  // seeds the baseline, so opening the page mid-demo does not fire five toasts.
-  useEffect(() => {
-    if (seen.current === null) {
-      seen.current = new Set(reports.map((r) => r.edge_id));
-      return;
-    }
-    const fresh = reports.find((r) => !seen.current!.has(r.edge_id));
-    seen.current = new Set(reports.map((r) => r.edge_id));
-    if (!fresh) return;
-
-    setToast(fresh);
-    const t = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(t);
-  }, [reports]);
-
   const graph = campus ? buildGraph(campus, reports, prefs) : null;
-  const route = graph && from && to ? findRoute(graph, from, to) : null;
+  const route =
+    graph && from && to ? findRoute(graph, from.nodeId, to.nodeId) : null;
   const metres = useCountUp(route?.distance ?? 0);
 
   if (!campus || !graph) {
@@ -73,6 +60,14 @@ export default function App() {
     );
   }
 
+  // Only offer places that can actually be routed to. VT's network has ~119
+  // components; a point snapped onto a stranded fragment looks fine and then
+  // never finds a route.
+  const routableIds = largestComponent(graph.nodes, graph.edges);
+  const routable = new Map(
+    [...graph.nodes].filter(([id]) => routableIds.has(id)),
+  );
+
   const buildings = [...graph.nodes.values()]
     .filter((n) => n.building)
     .map((n) => ({ id: n.id, name: n.building! }))
@@ -80,14 +75,15 @@ export default function App() {
 
   return (
     <div className="app">
-      <Map
+      <MapView
         edges={[...graph.edges.values()]}
         route={route}
         reports={reports}
-        from={from ? graph.nodes.get(from) : undefined}
-        to={to ? graph.nodes.get(to) : undefined}
+        from={from ? graph.nodes.get(from.nodeId) : undefined}
+        to={to ? graph.nodes.get(to.nodeId) : undefined}
         theme={theme}
         show3D={show3D}
+        onPickEdge={setPicked}
       />
 
       <div className="stack stack-left">
@@ -107,6 +103,7 @@ export default function App() {
 
         <Controls
           buildings={buildings}
+          nodes={routable}
           from={from}
           to={to}
           prefs={prefs}
@@ -116,6 +113,17 @@ export default function App() {
           show3D={show3D}
           onShow3D={setShow3D}
         />
+
+        {picked && (
+          <ReportPopover
+            edgeId={picked}
+            onClose={() => setPicked(null)}
+            onSubmit={(type: ReportType, note: string) => {
+              void submitReport(picked, type, note);
+              setPicked(null);
+            }}
+          />
+        )}
 
         {route && <Directions route={route} />}
       </div>
@@ -146,15 +154,6 @@ export default function App() {
           </span>
         )}
       </div>
-
-      {toast && (
-        <div className="toast" key={toast.edge_id}>
-          <span className="toast-kind">{label(toast.type)}</span>
-          <span className="toast-body">
-            Reported on {toast.edge_id} &mdash; rerouting
-          </span>
-        </div>
-      )}
     </div>
   );
 }

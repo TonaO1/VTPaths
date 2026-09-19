@@ -37,16 +37,31 @@ export function subscribeReports(cb: (reports: Report[]) => void): () => void {
  * First tap inserts, second increments. Same call either way, so there is no
  * client-side read-modify-write race.
  */
+export const NOTE_LIMIT = 140;
+
 export async function submitReport(
   edgeId: string,
   type: ReportType,
+  note?: string,
 ): Promise<void> {
   if (!supabase) return;
+
   const { error } = await supabase.rpc('confirm_report', {
     p_edge: edgeId,
     p_type: type,
+    p_note: note?.trim().slice(0, NOTE_LIMIT) || null,
   });
-  if (error) console.error('submitReport', error);
+  if (!error) return;
+
+  // The note column and the three-argument function arrived together. If this
+  // database has not had supabase/schema.sql re-run yet, reporting must still
+  // work: drop the note rather than the report.
+  console.warn('confirm_report with note failed, retrying without', error);
+  const retry = await supabase.rpc('confirm_report', {
+    p_edge: edgeId,
+    p_type: type,
+  });
+  if (retry.error) console.error('submitReport', retry.error);
 }
 
 export const confirmReport = submitReport;
