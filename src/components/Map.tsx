@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { Edge, Node, Report, RouteResult } from '../lib/types';
@@ -31,6 +31,10 @@ export default function Map({ edges, route, reports, from, to }: Props) {
   const map = useRef<mapboxgl.Map | null>(null);
   const startMarker = useRef<mapboxgl.Marker | null>(null);
   const endMarker = useRef<mapboxgl.Marker | null>(null);
+  // Sources only exist after Mapbox fires `load`. Without gating on this, the
+  // first route arrives before the source does, the effect bails, and no line
+  // is ever drawn until the user happens to change a dropdown again.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!MAPBOX_TOKEN) {
@@ -61,17 +65,35 @@ export default function Map({ edges, route, reports, from, to }: Props) {
 
       m.addSource('route', { type: 'geojson', data: emptyLine() });
       m.addLayer({
+        id: 'route-casing',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': '#0d0f13', 'line-width': 13, 'line-opacity': 0.85 },
+      });
+      m.addLayer({
         id: 'route',
         type: 'line',
         source: 'route',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#861f41', 'line-width': 6 },
+        paint: { 'line-color': '#d34d77', 'line-width': 6 },
       });
+
+      setReady(true);
     });
 
+    // The map now fills the viewport, and Mapbox sizes its canvas once at
+    // construction. Without this it paints only the rectangle it was born
+    // with and leaves the rest of the screen blank.
+    const resize = new ResizeObserver(() => m.resize());
+    resize.observe(container.current);
+    m.on('load', () => m.resize());
+
     return () => {
+      resize.disconnect();
       m.remove();
       map.current = null;
+      setReady(false);
     };
     // Sources are seeded once on load; later data changes go through the
     // effects below via setData rather than re-creating the map.
@@ -82,7 +104,7 @@ export default function Map({ edges, route, reports, from, to }: Props) {
     const m = map.current;
     const source = m?.getSource('network') as mapboxgl.GeoJSONSource | undefined;
     source?.setData(toLines(edges, reports));
-  }, [edges, reports]);
+  }, [edges, reports, ready]);
 
   useEffect(() => {
     const m = map.current;
@@ -104,8 +126,13 @@ export default function Map({ edges, route, reports, from, to }: Props) {
       (b, c) => b.extend(c),
       new mapboxgl.LngLatBounds(route.coords[0], route.coords[0]),
     );
-    m.fitBounds(bounds, { padding: 60, maxZoom: 18 });
-  }, [route]);
+    // Panels float over the map, so keep the route clear of them.
+    m.fitBounds(bounds, {
+      padding: { top: 120, bottom: 200, left: 420, right: 380 },
+      maxZoom: 18,
+      duration: 900,
+    });
+  }, [route, ready]);
 
   useEffect(() => {
     const m = map.current;
@@ -118,7 +145,7 @@ export default function Map({ edges, route, reports, from, to }: Props) {
 
     endMarker.current?.remove();
     endMarker.current = to
-      ? new mapboxgl.Marker({ color: '#ff6b35' }).setLngLat([to.lon, to.lat]).addTo(m)
+      ? new mapboxgl.Marker({ color: '#861f41' }).setLngLat([to.lon, to.lat]).addTo(m)
       : null;
   }, [from, to]);
 
