@@ -14,9 +14,34 @@
   --maroon-lift: #a82a52;
   --alert: #ff6b35;
   --bg: #14161b;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.8);
 
   font-family: system-ui, -apple-system, sans-serif;
   color-scheme: dark;
+}
+
+
+/* Light map needs dark text and an opaque-ish panel, or the glass disappears
+   against pale streets. */
+:root[data-theme='light'] {
+  --ink: #15181e;
+  --muted: #5c6472;
+  --panel: rgba(255, 255, 255, 0.88);
+  --edge: rgba(0, 0, 0, 0.1);
+  --bg: #eef0f4;
+  --shadow: 0 18px 44px rgba(20, 25, 40, 0.18);
+  --scrim: rgba(255, 255, 255, 0.85);
+  color-scheme: light;
+}
+
+:root[data-theme='light'] select,
+:root[data-theme='light'] .seg-field input {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme='light'] .chip:not(.chip-on) {
+  color: #4a515e;
 }
 
 * {
@@ -79,14 +104,18 @@ body {
   border: 1px solid var(--edge);
   border-radius: 16px;
   padding: 1rem;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow);
 }
 
 /* ---------- brand ---------- */
 
 .brand {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   padding-left: 0.25rem;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 2px 20px var(--scrim);
 }
 
 .brand h1 {
@@ -174,6 +203,93 @@ select:focus-visible {
   color: #fff;
 }
 
+
+button.theme {
+  font: inherit;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--muted);
+  cursor: pointer;
+  flex: none;
+}
+
+button.theme:hover {
+  color: var(--ink);
+}
+
+/* ---------- directions ---------- */
+
+.directions {
+  max-height: min(42vh, 380px);
+  overflow-y: auto;
+}
+
+.directions h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.directions ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.directions li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0.1rem 0.6rem;
+  align-items: baseline;
+}
+
+.directions li::before {
+  content: counter(step);
+  grid-row: span 2;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: grid;
+  place-content: center;
+}
+
+.step-text {
+  font-size: 0.95rem;
+}
+
+.step-dist {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* Zoom buttons sit bottom-right; keep the toast clear of them. */
+.toast {
+  bottom: 7.5rem;
+}
+
+.mapboxgl-ctrl-group {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
 /* ---------- the readout ---------- */
 
 .readout {
@@ -185,7 +301,7 @@ select:focus-visible {
   align-items: baseline;
   gap: 0.4rem;
   flex-wrap: wrap;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.9);
+  text-shadow: 0 2px 24px var(--scrim);
   pointer-events: none;
 }
 
