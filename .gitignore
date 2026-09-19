@@ -27,6 +27,7 @@ coverage/
 # raw GIS pulls: regenerate with `npm run fetch-gis`, do not commit
 # (src/data/campus.geojson IS committed, it is the routing graph)
 data/raw-*.geojson
+data/raw-*.json
 data/raw/
 scripts/tmp/
 

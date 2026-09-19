@@ -6,8 +6,13 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const IN = 'data/raw-access-route.geojson';
+const BUILDINGS = 'data/raw-buildings.json';
 const OVERLAY = 'data/overlay.json';
 const OUT = 'src/data/campus.geojson';
+
+// A building further than this from any accessible path is not somewhere the
+// router can honestly claim to take you.
+const MAX_BUILDING_SNAP_M = 150;
 
 // ~1.1 m at this latitude. VT's polylines mostly share exact endpoints; this
 // absorbs the ones that are a survey hair apart and would otherwise strand a
@@ -161,10 +166,71 @@ for (const id of nodeCoords.keys()) {
 }
 const ranked = [...sizes.values()].sort((a, b) => b - a);
 
+// Buildings are the route endpoints the dropdowns offer. VT gives them as
+// plain lat/lon attributes, so each one attaches to the nearest path node that
+// is actually routable, i.e. in the largest component. Anything that lands on a
+// stranded fragment would be selectable and then unreachable.
+const mainComponent = [...sizes].sort((a, b) => b[1] - a[1])[0]![0];
+const routable = [...nodeCoords.keys()].filter((id) => find(id) === mainComponent);
+
+interface RawBuilding {
+  name: string | null;
+  bldg_num: string | null;
+  community: string | null;
+  status: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+const buildingOf = new Map<string, { name: string; distance: number }>();
+let attached = 0;
+let tooFar = 0;
+
+if (existsSync(BUILDINGS)) {
+  const raw = JSON.parse(readFileSync(BUILDINGS, 'utf8')) as RawBuilding[];
+  const named = raw.filter(
+    (b) =>
+      b.name &&
+      b.latitude &&
+      b.longitude &&
+      b.community === 'VIRGINIA TECH' &&
+      b.status === 'Existing Conditions' &&
+      b.bldg_num !== '<Null>',
+  );
+
+  for (const b of named) {
+    const at: Coord = [b.longitude!, b.latitude!];
+    let nearest = '';
+    let best = Infinity;
+    for (const id of routable) {
+      const d = metres(at, nodeCoords.get(id)!);
+      if (d < best) {
+        best = d;
+        nearest = id;
+      }
+    }
+
+    if (best > MAX_BUILDING_SNAP_M) {
+      tooFar++;
+      continue;
+    }
+
+    // Several buildings can share a doorway node; the closest one keeps it,
+    // because Node.building is singular in the types contract.
+    const held = buildingOf.get(nearest);
+    if (!held || best < held.distance) {
+      buildingOf.set(nearest, { name: b.name!, distance: best });
+    }
+    attached++;
+  }
+}
+
 const nodes = [...nodeCoords].map(([id, c]) => ({
   type: 'Feature' as const,
   geometry: { type: 'Point' as const, coordinates: c },
-  properties: { id },
+  properties: buildingOf.has(id)
+    ? { id, building: buildingOf.get(id)!.name }
+    : { id },
 }));
 
 writeFileSync(
@@ -177,4 +243,7 @@ const stairCount = edges.filter((e) => e.properties.has_stairs).length;
 console.log(`${nodes.length} nodes, ${edges.length} edges -> ${OUT}`);
 console.log(`${steepCount} steep, ${stairCount} with stairs`);
 console.log(`${ranked.length} components, largest ${ranked[0]} nodes`);
-console.log(`top 10: ${ranked.slice(0, 10).join(', ')}`);
+console.log(
+  `${buildingOf.size} buildings on the graph ` +
+    `(${attached} matched, ${attached - buildingOf.size} shared a node, ${tooFar} too far)`,
+);
