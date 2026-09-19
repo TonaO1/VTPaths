@@ -280,9 +280,9 @@ button.theme:hover {
   color: var(--muted);
 }
 
-/* Zoom buttons sit bottom-right; keep the toast clear of them. */
+/* Bottom-right stacks upward: zoom controls, the fit button, then the toast. */
 .toast {
-  bottom: 7.5rem;
+  bottom: 12rem;
 }
 
 .mapboxgl-ctrl-group {
@@ -595,4 +595,154 @@ button.reset:hover {
 
 .mapboxgl-ctrl-attrib {
   font-size: 10px;
+}
+
+/* ---------- legend, fit button, click-to-report ---------- */
+
+.legend {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1.5rem;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  max-width: min(420px, calc(100vw - 3rem));
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sw {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.sw-route { background: #861f41; }
+.sw-steep { background: #f4a11c; }
+.sw-stairs {
+  background: repeating-linear-gradient(90deg, #7b3fb8 0 5px, transparent 5px 8px);
+}
+.sw-reported { background: #e5243b; }
+
+button.fit {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 7.5rem;
+  z-index: 3;
+  font: inherit;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.popover {
+  display: grid;
+  gap: 0.7rem;
+  border-left: 3px solid var(--alert);
+}
+
+.popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.popover h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+button.close {
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.note-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.note-field input {
+  font: inherit;
+  font-size: 0.95rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.popover-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.popover-buttons button {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.popover-buttons button:hover {
+  background: var(--maroon);
+  border-color: var(--maroon);
+  color: #fff;
+}
+
+.alerts .note {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+@media (max-width: 720px) {
+  .legend,
+  button.fit {
+    position: static;
+    margin-top: 0.5rem;
+  }
 }

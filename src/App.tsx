@@ -3,14 +3,15 @@ import AlertPanel, { label } from './components/AlertPanel';
 import Controls from './components/Controls';
 import Directions from './components/Directions';
 import Map, { type Theme } from './components/Map';
+import ReportPopover from './components/ReportPopover';
 import campusUrl from './data/campus.geojson?url';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
-import { clearAllReports, subscribeReports } from './lib/reports';
+import { clearAllReports, submitReport, subscribeReports } from './lib/reports';
 import { findRoute } from './lib/route';
 import { supabase } from './lib/supabase';
 import { feet } from './lib/directions';
 import { useCountUp } from './lib/useCountUp';
-import type { Prefs, Report } from './lib/types';
+import type { Prefs, Report, ReportType } from './lib/types';
 
 // Owns all state. Everything below is a pure function of props: a report lands,
 // `reports` changes, the graph is rebuilt, the route is recomputed, the map
@@ -25,7 +26,8 @@ export default function App() {
     avoidSteep: false,
   });
   const [toast, setToast] = useState<Report | null>(null);
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
+  const [picked, setPicked] = useState<string | null>(null);
   const seen = useRef<Set<string> | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
@@ -86,6 +88,7 @@ export default function App() {
         from={from ? graph.nodes.get(from) : undefined}
         to={to ? graph.nodes.get(to) : undefined}
         theme={theme}
+        onPickEdge={setPicked}
       />
 
       <div className="stack stack-left">
@@ -112,6 +115,17 @@ export default function App() {
           onTo={setTo}
           onPrefs={setPrefs}
         />
+
+        {picked && (
+          <ReportPopover
+            edgeId={picked}
+            onClose={() => setPicked(null)}
+            onSubmit={(type: ReportType, note: string) => {
+              void submitReport(picked, type, note);
+              setPicked(null);
+            }}
+          />
+        )}
 
         {route && <Directions route={route} />}
       </div>
@@ -147,7 +161,8 @@ export default function App() {
         <div className="toast" key={toast.edge_id}>
           <span className="toast-kind">{label(toast.type)}</span>
           <span className="toast-body">
-            Reported on {toast.edge_id} &mdash; rerouting
+            {toast.note ? toast.note : `Reported on ${toast.edge_id}`} &mdash;
+            rerouting
           </span>
         </div>
       )}

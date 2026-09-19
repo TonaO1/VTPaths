@@ -43,7 +43,11 @@ export default function AlertPanel({ reports, online, onReset }: Props) {
           .map((r) => (
             <li key={r.edge_id}>
               <strong>{label(r.type)}</strong>
-              <span className="seg">{r.edge_id}</span>
+              {r.note ? (
+                <span className="note">&ldquo;{r.note}&rdquo;</span>
+              ) : (
+                <span className="seg">{r.edge_id}</span>
+              )}
               {r.count > 1 && <span className="count">{r.count} reports</span>}
             </li>
           ))}
