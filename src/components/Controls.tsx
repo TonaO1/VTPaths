@@ -26,42 +26,41 @@ export default function Controls({
   ));
 
   return (
-    <section className="controls">
-      <label>
-        From
+    <div className="panel controls">
+      <div className="field">
+        <span className="dot dot-start" />
         <select value={from} onChange={(e) => onFrom(e.target.value)}>
-          <option value="">Choose a building</option>
+          <option value="">Starting point</option>
           {options}
         </select>
-      </label>
-
-      <label>
-        To
-        <select value={to} onChange={(e) => onTo(e.target.value)}>
-          <option value="">Choose a building</option>
-          {options}
-        </select>
-      </label>
-
-      <div className="checks">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={prefs.avoidStairs}
-            onChange={(e) => onPrefs({ ...prefs, avoidStairs: e.target.checked })}
-          />
-          Avoid stairs
-        </label>
-
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={prefs.avoidSteep}
-            onChange={(e) => onPrefs({ ...prefs, avoidSteep: e.target.checked })}
-          />
-          Avoid steep grades
-        </label>
       </div>
-    </section>
+
+      <div className="field">
+        <span className="dot dot-end" />
+        <select value={to} onChange={(e) => onTo(e.target.value)}>
+          <option value="">Destination</option>
+          {options}
+        </select>
+      </div>
+
+      <div className="toggles">
+        <button
+          type="button"
+          className={prefs.avoidStairs ? 'chip chip-on' : 'chip'}
+          aria-pressed={prefs.avoidStairs}
+          onClick={() => onPrefs({ ...prefs, avoidStairs: !prefs.avoidStairs })}
+        >
+          No stairs
+        </button>
+        <button
+          type="button"
+          className={prefs.avoidSteep ? 'chip chip-on' : 'chip'}
+          aria-pressed={prefs.avoidSteep}
+          onClick={() => onPrefs({ ...prefs, avoidSteep: !prefs.avoidSteep })}
+        >
+          No steep grades
+        </button>
+      </div>
+    </div>
   );
 }

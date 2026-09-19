@@ -1,176 +1,482 @@
-/* The laptop view is the product as far as judging goes: a judge reads this
-   standing three feet back, so nothing here is smaller than 16px. */
+/* Judges read this standing three feet back, so the distance is the biggest
+   thing on screen and the map is everything behind it.
+
+   Colour discipline: maroon is the route and the product. Orange means a
+   barrier and nothing else, so orange on screen always reads as "something is
+   wrong". */
 
 :root {
-  --bg: #16181d;
-  --panel: #1e2128;
-  --line: #2f333d;
-  --text: #f2f4f8;
-  --muted: #a3abba;
-  --accent: #ff6b35;
+  --ink: #f4f6fa;
+  --muted: #98a1b2;
+  --panel: rgba(20, 22, 27, 0.82);
+  --edge: rgba(255, 255, 255, 0.09);
   --maroon: #861f41;
+  --maroon-lift: #a82a52;
+  --alert: #ff6b35;
+  --bg: #14161b;
 
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font-size: 17px;
+  color: var(--ink);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- shell ---------- */
 
 .app {
-  display: grid;
-  gap: 1.25rem;
-  padding: 1.5rem;
-  max-width: 900px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 2rem;
-  letter-spacing: -0.02em;
-}
-
-h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-section {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 1.25rem;
-}
-
-.controls {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr 1fr;
-}
-
-.checks {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-}
-
-label {
-  display: grid;
-  gap: 0.4rem;
-  font-size: 0.95rem;
-  color: var(--muted);
-}
-
-label.check {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--text);
-}
-
-select,
-input[type='text'] {
-  font: inherit;
-  padding: 0.65rem;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  color: var(--text);
-}
-
-input[type='checkbox'] {
-  width: 1.3rem;
-  height: 1.3rem;
-  accent-color: var(--accent);
-}
-
-.map {
-  height: 440px;
-  border-radius: 10px;
+  position: fixed;
+  inset: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
+}
+
+.map,
+.map-disabled {
+  position: absolute;
+  inset: 0;
 }
 
 .map-disabled {
   display: grid;
-  place-items: center;
-  padding: 1.25rem;
+  place-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--muted);
+  background: var(--bg);
+}
+
+.stack {
+  position: absolute;
+  top: 1.5rem;
+  z-index: 2;
+  display: grid;
+  gap: 1rem;
+  width: min(360px, calc(100vw - 3rem));
+}
+
+.stack-left {
+  left: 1.5rem;
+}
+
+.stack-right {
+  right: 1.5rem;
+  justify-items: end;
+}
+
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- brand ---------- */
+
+.brand {
+  padding-left: 0.25rem;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.brand p {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
   color: var(--muted);
 }
 
-.route p {
-  margin: 0;
-  font-size: 1.35rem;
+/* ---------- controls ---------- */
+
+.controls {
+  display: grid;
+  gap: 0.6rem;
 }
 
-.route strong {
-  color: var(--accent);
-  font-size: 1.8rem;
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0 0.2rem;
+}
+
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot-start {
+  background: #3ddc84;
+}
+
+.dot-end {
+  background: var(--maroon-lift);
+}
+
+select {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.6rem;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+}
+
+select:focus-visible {
+  outline: 2px solid var(--maroon-lift);
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.2rem;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.chip-on {
+  background: var(--maroon);
+  border-color: var(--maroon-lift);
+  color: #fff;
+}
+
+/* ---------- the readout ---------- */
+
+.readout {
+  position: absolute;
+  left: 1.75rem;
+  bottom: 1.5rem;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.distance {
+  font-size: 5rem;
+  font-weight: 200;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  font-size: 2rem;
+  font-weight: 200;
+  color: var(--muted);
+}
+
+.sub {
+  width: 100%;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.sub-idle {
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+}
+
+/* ---------- live reports ---------- */
+
+.alerts {
+  width: min(320px, calc(100vw - 3rem));
+  display: grid;
+  gap: 0.75rem;
+}
+
+.alerts-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.alerts h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+
+.pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--alert);
+  animation: pulse 1.8s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.55); }
+  70% { box-shadow: 0 0 0 11px rgba(255, 107, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0); }
 }
 
 .alerts ul {
   list-style: none;
-  margin: 0 0 1rem;
+  margin: 0;
   padding: 0;
   display: grid;
   gap: 0.5rem;
 }
 
 .alerts li {
-  padding: 0.7rem 0.9rem;
-  border-radius: 8px;
-  background: var(--bg);
-  border-left: 4px solid var(--accent);
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: rgba(255, 107, 53, 0.1);
+  border-left: 3px solid var(--alert);
+  animation: slide-in 0.35s ease-out;
 }
 
-.alerts li span {
+.alerts strong {
+  font-size: 0.95rem;
+}
+
+.seg {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
   color: var(--muted);
-  font-size: 0.9rem;
 }
 
 .count {
-  color: var(--accent) !important;
-  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--alert);
 }
 
 .offline {
-  color: var(--accent);
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--alert);
 }
 
-button {
+button.reset {
   font: inherit;
-  padding: 0.7rem 1.1rem;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--maroon);
-  color: var(--text);
+  font-size: 0.85rem;
+  padding: 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--muted);
   cursor: pointer;
 }
 
-button:disabled {
-  background: var(--panel);
+button.reset:hover {
+  color: var(--ink);
+  border-color: var(--maroon-lift);
+}
+
+/* ---------- toast: the moment the pitch turns on ---------- */
+
+.toast {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  background: var(--alert);
+  color: #21160f;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  animation: slide-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
+  max-width: min(340px, calc(100vw - 3rem));
+}
+
+.toast-kind {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.toast-body {
+  font-size: 0.95rem;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- boot ---------- */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+}
+
+.boot-mark {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.boot-note {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+/* ---------- /report: a phone, at arm's length, mid-sentence ---------- */
+
+.report {
+  min-height: 100vh;
+  display: grid;
+  align-content: start;
+  gap: 1.1rem;
+  padding: 1.5rem 1.25rem 2.5rem;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.report h1 {
+  margin: 0.5rem 0 0;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.seg-field {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.seg-field input {
+  font: inherit;
+  font-size: 1.1rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.report-buttons {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.report-buttons button {
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding: 1.3rem;
+  border-radius: 14px;
+  border: none;
+  background: var(--maroon);
+  color: #fff;
+  cursor: pointer;
+}
+
+.report-buttons button:active {
+  background: var(--maroon-lift);
+}
+
+.report-buttons button:disabled {
+  background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
   cursor: default;
 }
 
-/* /report is a phone view. It does not need to be pretty, it needs to be
-   tappable while its owner is standing next to a judge. */
-.report {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  max-width: 480px;
+.sent {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(255, 107, 53, 0.14);
+  border-left: 3px solid var(--alert);
+  font-size: 1rem;
 }
 
-.report button {
-  padding: 1.1rem;
-  font-size: 1.1rem;
+/* ---------- small screens: panels stop floating ---------- */
+
+@media (max-width: 720px) {
+  .stack,
+  .stack-left,
+  .stack-right {
+    position: static;
+    width: auto;
+  }
+
+  .app {
+    position: static;
+    overflow: visible;
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .map,
+  .map-disabled {
+    position: relative;
+    height: 55vh;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .readout {
+    position: static;
+  }
+
+  .distance {
+    font-size: 3.5rem;
+  }
+}
+
+.mapboxgl-ctrl-attrib {
+  font-size: 10px;
 }

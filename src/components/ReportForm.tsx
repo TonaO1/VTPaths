@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { submitReport } from '../lib/reports';
 import { REPORT_TYPES, type ReportType } from '../lib/types';
+import { label } from './AlertPanel';
 
-// The /report phone view. Must work standalone, without the map rendering.
+// The /report phone view. Held at arm's length, tapped mid-sentence, and it
+// must work with no map rendered.
 export default function ReportForm() {
   const [edgeId, setEdgeId] = useState(
     new URLSearchParams(window.location.search).get('edge') ?? '',
@@ -16,17 +18,31 @@ export default function ReportForm() {
 
   return (
     <main className="report">
-      <h1>Report a barrier</h1>
-      <label>
+      <h1>What's in the way?</h1>
+
+      <label className="seg-field">
         Path segment
-        <input type="text" value={edgeId} onChange={(e) => setEdgeId(e.target.value)} />
+        <input
+          type="text"
+          value={edgeId}
+          placeholder="E6635"
+          onChange={(e) => setEdgeId(e.target.value)}
+        />
       </label>
-      {REPORT_TYPES.map((type) => (
-        <button key={type} disabled={!edgeId} onClick={() => void report(type)}>
-          {type.replace('_', ' ')}
-        </button>
-      ))}
-      {sent && <p>Reported: {sent.replace('_', ' ')}</p>}
+
+      <div className="report-buttons">
+        {REPORT_TYPES.map((type) => (
+          <button key={type} disabled={!edgeId} onClick={() => void report(type)}>
+            {label(type)}
+          </button>
+        ))}
+      </div>
+
+      {sent && (
+        <p className="sent">
+          Reported &mdash; everyone&rsquo;s route just updated.
+        </p>
+      )}
     </main>
   );
 }
