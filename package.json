@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "fetch-gis": "node --experimental-strip-types scripts/fetch-vt-gis.ts",
     "build-graph": "node --experimental-strip-types scripts/build-graph.ts",
-    "seed": "node --env-file=.env.local --experimental-strip-types scripts/seed.ts"
+    "seed": "node --env-file=.env.local --experimental-strip-types scripts/seed.ts",
+    "enrich-overlay": "node --experimental-strip-types scripts/enrich-overlay.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

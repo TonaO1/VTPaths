@@ -144,8 +144,55 @@ for (const f of raw.features) {
   }
 }
 
+// Overlay edges come from OpenStreetMap, whose geometry was surveyed
+// independently of VT's, so their endpoints never coincide with a VT node.
+// Attach each end to the nearest one instead, and drop any that cannot reach
+// the network at both ends - a stair flight joined at one end is a dead end,
+// not a shortcut.
+const OVERLAY_SNAP_M = 25;
+
+function nearestNode(at: Coord): { id: string; distance: number } | null {
+  let id = '';
+  let best = Infinity;
+  for (const [candidate, coord] of nodeCoords) {
+    const d = metres(at, coord);
+    if (d < best) {
+      best = d;
+      id = candidate;
+    }
+  }
+  return id ? { id, distance: best } : null;
+}
+
+let attachedStairs = 0;
+let strandedStairs = 0;
+
 for (const e of overlay.extraEdges ?? []) {
-  addEdge(e.id, e.coords, e.steep ?? false, e.has_stairs ?? true);
+  if (e.coords.length < 2) continue;
+
+  const head = nearestNode(e.coords[0]!);
+  const tail = nearestNode(e.coords[e.coords.length - 1]!);
+
+  if (
+    !head ||
+    !tail ||
+    head.id === tail.id ||
+    head.distance > OVERLAY_SNAP_M ||
+    tail.distance > OVERLAY_SNAP_M
+  ) {
+    strandedStairs++;
+    continue;
+  }
+
+  // Draw the OSM geometry but bridge both ends to the VT nodes, so the line on
+  // the map matches the edge in the graph.
+  const coords: Coord[] = [
+    nodeCoords.get(head.id)!,
+    ...e.coords,
+    nodeCoords.get(tail.id)!,
+  ];
+  addEdge(e.id, coords, e.steep ?? false, e.has_stairs ?? true);
+  attachedStairs++;
 }
 
 // Connected components. If routing returns nothing, this number is the first
@@ -240,6 +287,9 @@ writeFileSync(
 
 const steepCount = edges.filter((e) => e.properties.steep).length;
 const stairCount = edges.filter((e) => e.properties.has_stairs).length;
+console.log(
+  `stairs: ${attachedStairs} attached, ${strandedStairs} too far from the network`,
+);
 console.log(`${nodes.length} nodes, ${edges.length} edges -> ${OUT}`);
 console.log(`${steepCount} steep, ${stairCount} with stairs`);
 console.log(`${ranked.length} components, largest ${ranked[0]} nodes`);
