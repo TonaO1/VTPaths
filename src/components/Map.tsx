@@ -29,12 +29,13 @@ interface Props {
   from?: Node;
   to?: Node;
   theme: Theme;
+  show3D: boolean;
 }
 
 // Mapbox canvas: base network, the current route, and start/end markers.
 // No MapLibre fallback yet if the token is bad — logged loudly instead, per
 // AGENTS.md error handling (known escape hatch, not built to save the dep).
-export default function Map({ edges, route, reports, from, to, theme }: Props) {
+export default function Map({ edges, route, reports, from, to, theme, show3D }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const startMarker = useRef<mapboxgl.Marker | null>(null);
@@ -131,6 +132,51 @@ export default function Map({ edges, route, reports, from, to, theme }: Props) {
     source?.setData(toLines(edges, reports));
   }, [edges, reports, ready]);
 
+  // Layers do not survive setStyle, same as network/route above, so this
+  // re-adds on every style reload rather than once.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+
+    if (show3D) {
+      if (!m.getLayer('buildings-3d')) {
+        m.addLayer({
+          id: 'buildings-3d',
+          source: 'composite',
+          'source-layer': 'building',
+          filter: ['==', ['get', 'extrude'], 'true'],
+          type: 'fill-extrusion',
+          minzoom: 15,
+          paint: {
+            'fill-extrusion-color': '#861f41',
+            'fill-extrusion-height': ['get', 'height'],
+            'fill-extrusion-base': ['get', 'min_height'],
+            'fill-extrusion-opacity': 0.6,
+          },
+        });
+      }
+
+      // Walker view: stand at the start of the route, facing the direction
+      // of travel, close enough that buildings read at human scale. With no
+      // route chosen yet there is no direction to face, so just tilt in place.
+      if (from && route && route.coords.length >= 2) {
+        const ahead = route.coords[Math.min(4, route.coords.length - 1)];
+        m.easeTo({
+          center: [from.lon, from.lat],
+          zoom: 18.5,
+          pitch: 60,
+          bearing: bearingBetween(route.coords[0], ahead),
+          duration: 900,
+        });
+      } else {
+        m.easeTo({ pitch: 55, duration: 500 });
+      }
+    } else {
+      if (m.getLayer('buildings-3d')) m.removeLayer('buildings-3d');
+      m.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+    }
+  }, [show3D, ready, route, from]);
+
   useEffect(() => {
     const m = map.current;
     const source = m?.getSource('route') as mapboxgl.GeoJSONSource | undefined;
@@ -147,6 +193,9 @@ export default function Map({ edges, route, reports, from, to, theme }: Props) {
       geometry: { type: 'LineString', coordinates: route.coords },
     });
 
+    // In 3D mode the walker-view effect above owns the camera instead.
+    if (show3D) return;
+
     const bounds = route.coords.reduce(
       (b, c) => b.extend(c),
       new mapboxgl.LngLatBounds(route.coords[0], route.coords[0]),
@@ -157,7 +206,7 @@ export default function Map({ edges, route, reports, from, to, theme }: Props) {
       maxZoom: 18,
       duration: 900,
     });
-  }, [route, ready]);
+  }, [route, ready, show3D]);
 
   useEffect(() => {
     const m = map.current;
@@ -199,4 +248,15 @@ function toLines(edges: Edge[], reports: Report[]): { type: 'FeatureCollection';
 
 function emptyLine(): LineFeature {
   return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } };
+}
+
+// Compass bearing a walker at `a` faces looking toward `b`, in degrees.
+function bearingBetween(a: [number, number], b: [number, number]): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const [lon1, lat1] = [rad(a[0]), rad(a[1])];
+  const [lon2, lat2] = [rad(b[0]), rad(b[1])];
+  const dLon = lon2 - lon1;
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }

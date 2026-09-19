@@ -26,6 +26,7 @@ export default function App() {
   });
   const [toast, setToast] = useState<Report | null>(null);
   const [theme, setTheme] = useState<Theme>('dark');
+  const [show3D, setShow3D] = useState(false);
   const seen = useRef<Set<string> | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
@@ -86,6 +87,7 @@ export default function App() {
         from={from ? graph.nodes.get(from) : undefined}
         to={to ? graph.nodes.get(to) : undefined}
         theme={theme}
+        show3D={show3D}
       />
 
       <div className="stack stack-left">
@@ -111,6 +113,8 @@ export default function App() {
           onFrom={setFrom}
           onTo={setTo}
           onPrefs={setPrefs}
+          show3D={show3D}
+          onShow3D={setShow3D}
         />
 
         {route && <Directions route={route} />}

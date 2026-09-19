@@ -8,6 +8,8 @@ interface Props {
   onFrom: (id: string) => void;
   onTo: (id: string) => void;
   onPrefs: (prefs: Prefs) => void;
+  show3D: boolean;
+  onShow3D: (show3D: boolean) => void;
 }
 
 export default function Controls({
@@ -18,6 +20,8 @@ export default function Controls({
   onFrom,
   onTo,
   onPrefs,
+  show3D,
+  onShow3D,
 }: Props) {
   const options = buildings.map((b) => (
     <option key={b.id} value={b.id}>
@@ -59,6 +63,14 @@ export default function Controls({
           onClick={() => onPrefs({ ...prefs, avoidSteep: !prefs.avoidSteep })}
         >
           No steep grades
+        </button>
+        <button
+          type="button"
+          className={show3D ? 'chip chip-on' : 'chip'}
+          aria-pressed={show3D}
+          onClick={() => onShow3D(!show3D)}
+        >
+          3D buildings
         </button>
       </div>
     </div>
