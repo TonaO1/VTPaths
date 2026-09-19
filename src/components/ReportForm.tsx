@@ -15,11 +15,11 @@ export default function ReportForm() {
   }
 
   return (
-    <main>
+    <main className="report">
       <h1>Report a barrier</h1>
       <label>
         Path segment
-        <input value={edgeId} onChange={(e) => setEdgeId(e.target.value)} />
+        <input type="text" value={edgeId} onChange={(e) => setEdgeId(e.target.value)} />
       </label>
       {REPORT_TYPES.map((type) => (
         <button key={type} disabled={!edgeId} onClick={() => void report(type)}>
