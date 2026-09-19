@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import AlertPanel, { label } from './components/AlertPanel';
-import Controls from './components/Controls';
+import Controls, { type Endpoint } from './components/Controls';
 import Directions from './components/Directions';
-import Map, { type Theme } from './components/Map';
+// Imported as MapView: `Map` would shadow the global Map constructor.
+import MapView, { type Theme } from './components/Map';
 import ReportPopover from './components/ReportPopover';
 import campusUrl from './data/campus.geojson?url';
+import { largestComponent } from './lib/components';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
 import { clearAllReports, submitReport, subscribeReports } from './lib/reports';
 import { findRoute } from './lib/route';
@@ -19,8 +21,8 @@ import type { Prefs, Report, ReportType } from './lib/types';
 export default function App() {
   const [campus, setCampus] = useState<CampusGeoJSON | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState<Endpoint | null>(null);
+  const [to, setTo] = useState<Endpoint | null>(null);
   const [prefs, setPrefs] = useState<Prefs>({
     avoidStairs: true,
     avoidSteep: false,
@@ -62,7 +64,8 @@ export default function App() {
   }, [reports]);
 
   const graph = campus ? buildGraph(campus, reports, prefs) : null;
-  const route = graph && from && to ? findRoute(graph, from, to) : null;
+  const route =
+    graph && from && to ? findRoute(graph, from.nodeId, to.nodeId) : null;
   const metres = useCountUp(route?.distance ?? 0);
 
   if (!campus || !graph) {
@@ -74,6 +77,14 @@ export default function App() {
     );
   }
 
+  // Only offer places that can actually be routed to. VT's network has ~119
+  // components; a point snapped onto a stranded fragment looks fine and then
+  // never finds a route.
+  const routableIds = largestComponent(graph.nodes, graph.edges);
+  const routable = new Map(
+    [...graph.nodes].filter(([id]) => routableIds.has(id)),
+  );
+
   const buildings = [...graph.nodes.values()]
     .filter((n) => n.building)
     .map((n) => ({ id: n.id, name: n.building! }))
@@ -81,12 +92,12 @@ export default function App() {
 
   return (
     <div className="app">
-      <Map
+      <MapView
         edges={[...graph.edges.values()]}
         route={route}
         reports={reports}
-        from={from ? graph.nodes.get(from) : undefined}
-        to={to ? graph.nodes.get(to) : undefined}
+        from={from ? graph.nodes.get(from.nodeId) : undefined}
+        to={to ? graph.nodes.get(to.nodeId) : undefined}
         theme={theme}
         onPickEdge={setPicked}
       />
@@ -108,6 +119,7 @@ export default function App() {
 
         <Controls
           buildings={buildings}
+          nodes={routable}
           from={from}
           to={to}
           prefs={prefs}
