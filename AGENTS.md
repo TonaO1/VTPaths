@@ -48,11 +48,14 @@ root:
    addFeatures, updateFeatures, deleteFeatures, or any other mutating call, not
    even to test. If a task seems to need one, stop and say so.
 2. **Never add a feature outside the four in CONTEXT.md.** If a change request
-   implies free-text input, photo upload, auth, 3D, or bike/scooter-specific
-   routing, stop and flag it instead of building it.
-3. **Never introduce free-form user text.** Report types are a fixed enum. This
-   is a deliberate product decision, not an oversight: unmoderated text appears
-   on a projector in front of judges.
+   implies photo upload, auth, 3D, or bike/scooter-specific routing, stop and
+   flag it instead of building it.
+3. **The barrier type stays a fixed enum.** It is the only part of a report
+   routing reads, and it is what appears on the projector in front of judges.
+   The one exception is the optional note on a report: capped at
+   `NOTE_LIMIT` (140) characters client side, detail a router cannot use but a
+   person walking there can. That is the only free text in the product. Do not
+   add another free-text field anywhere else.
 4. **`src/lib/types.ts` is a contract.** Three people build against it in
    parallel. Changing an exported interface breaks other people's in-flight
    work. Propose the change, do not just make it.
