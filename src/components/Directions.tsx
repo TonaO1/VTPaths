@@ -18,9 +18,7 @@ export default function Directions({ route }: Props) {
           <li key={i}>
             <span className="step-text">{s.instruction}</span>
             {s.metres > 0 && (
-              <span className="step-dist">
-                {Math.round(s.metres)} m &middot; {Math.round(feet(s.metres))} ft
-              </span>
+              <span className="step-dist">{Math.round(feet(s.metres))} ft</span>
             )}
           </li>
         ))}

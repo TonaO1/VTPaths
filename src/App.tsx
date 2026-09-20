@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import About from './components/About';
 import AlertPanel, { label } from './components/AlertPanel';
 import Controls, { type Endpoint } from './components/Controls';
 import Directions from './components/Directions';
 // Imported as MapView: `Map` would shadow the global Map constructor.
-import MapView, { type Theme } from './components/Map';
+import MapView, { type Focus, type Theme } from './components/Map';
 import ReportPopover from './components/ReportPopover';
 import campusUrl from './data/campus.geojson?url';
 import { largestComponent } from './lib/components';
+import { activeReports } from './lib/expiry';
+import { nearestNode } from './lib/nearest';
 import { buildGraph, type CampusGeoJSON } from './lib/graph';
 import { clearAllReports, submitReport, subscribeReports } from './lib/reports';
 import { findRoute } from './lib/route';
 import { supabase } from './lib/supabase';
-import { feet } from './lib/directions';
+import { minutes, usDistance } from './lib/directions';
 import { useCountUp } from './lib/useCountUp';
 import type { Prefs, Report, ReportType } from './lib/types';
 
@@ -20,16 +23,22 @@ import type { Prefs, Report, ReportType } from './lib/types';
 // redraws. Nothing imperatively calls "redraw".
 export default function App() {
   const [campus, setCampus] = useState<CampusGeoJSON | null>(null);
-  const [reports, setReports] = useState<Report[]>([]);
+  const [allReports, setAllReports] = useState<Report[]>([]);
   const [from, setFrom] = useState<Endpoint | null>(null);
   const [to, setTo] = useState<Endpoint | null>(null);
   const [prefs, setPrefs] = useState<Prefs>({
     avoidStairs: true,
     avoidSteep: false,
+    strict: false,
+    avoidCrowds: false,
   });
+  const [now, setNow] = useState(() => Date.now());
   const [toast, setToast] = useState<Report | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [picked, setPicked] = useState<string | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
+  const [about, setAbout] = useState(false);
+  const [notice, setNotice] = useState('');
   const seen = useRef<Set<string> | null>(null);
 
   // Fetched rather than imported: the graph is ~880 KB and has no business
@@ -41,11 +50,22 @@ export default function App() {
       .catch((e: unknown) => console.error('campus.geojson', e));
   }, []);
 
-  useEffect(() => subscribeReports(setReports), []);
+  useEffect(() => subscribeReports(setAllReports), []);
+
+  // Reports expire on a timer, so the graph has to be rebuilt as time passes
+  // and not only when something else happens to re-render.
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Expired reports stop routing, stop drawing and stop being announced, so
+  // everything below works from the live set rather than the raw table.
+  const reports = activeReports(allReports, now);
 
   // Announce barriers that arrived after this client loaded. The first payload
   // seeds the baseline, so opening the page mid-demo does not fire five toasts.
@@ -99,15 +119,35 @@ export default function App() {
         from={from ? graph.nodes.get(from.nodeId) : undefined}
         to={to ? graph.nodes.get(to.nodeId) : undefined}
         theme={theme}
+        focus={focus}
         onPickEdge={setPicked}
+        onLocate={(point) => {
+          // A fix anywhere in Blacksburg is useless unless it lands on the
+          // routable network, so snap it or say plainly that we cannot.
+          const node = nearestNode(point, routable.values());
+          if (!node) {
+            setNotice('You are too far from a mapped accessible path to route from here.');
+            setTimeout(() => setNotice(''), 5000);
+            return;
+          }
+          setNotice('');
+          setFrom({ nodeId: node.id, label: 'My location' });
+        }}
       />
 
-      <div className="stack stack-left">
-        <header className="brand">
-          <div>
-            <h1>VTPaths</h1>
-            <p>Step-free routing, updated by students</p>
-          </div>
+      <nav className="navbar">
+        <div className="nav-brand">
+          <h1>VTPaths</h1>
+          <p>Step-free routing, updated by students</p>
+        </div>
+        <div className="nav-actions">
+          <button
+            className="theme"
+            aria-expanded={about}
+            onClick={() => setAbout(!about)}
+          >
+            About
+          </button>
           <button
             className="theme"
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} map`}
@@ -115,7 +155,11 @@ export default function App() {
           >
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
-        </header>
+        </div>
+      </nav>
+
+      <div className="stack stack-left">
+        {notice && <p className="panel notice">{notice}</p>}
 
         <Controls
           buildings={buildings}
@@ -143,21 +187,30 @@ export default function App() {
       </div>
 
       <div className="stack stack-right">
+        {about && <About onClose={() => setAbout(false)} />}
+
         <AlertPanel
           reports={reports}
           online={supabase !== null}
-          onReset={() => void clearAllReports()}
+          now={now}
+          onFocus={(edgeId) =>
+            setFocus((f) => ({ edgeId, nonce: (f?.nonce ?? 0) + 1 }))
+          }
+          onReset={() => {
+            setFocus(null);
+            void clearAllReports();
+          }}
         />
       </div>
 
       <div className="readout">
         {from && to && route ? (
           <>
-            <span className="distance">{Math.round(metres)}</span>
-            <span className="unit">m</span>
+            <span className="distance">{usDistance(metres).value}</span>
+            <span className="unit">{usDistance(metres).unit}</span>
             <span className="sub">
-              {Math.round(feet(metres))} ft &middot; {route.edgeIds.length}{' '}
-              segments &middot; step-free
+              {minutes(metres)} min &middot; {route.edgeIds.length} segments
+              &middot; step-free
             </span>
           </>
         ) : (

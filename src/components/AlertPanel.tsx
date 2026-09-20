@@ -1,9 +1,13 @@
+import { countdown, remaining } from '../lib/expiry';
 import type { Report, ReportType } from '../lib/types';
 
 interface Props {
   reports: Report[];
   online: boolean;
   onReset: () => void;
+  onFocus: (edgeId: string) => void;
+  /** Passed in rather than read from the clock, to keep this a pure render. */
+  now: number;
 }
 
 const LABELS: Record<ReportType, string> = {
@@ -18,7 +22,13 @@ export function label(type: string): string {
   return LABELS[type as ReportType] ?? type;
 }
 
-export default function AlertPanel({ reports, online, onReset }: Props) {
+export default function AlertPanel({
+  reports,
+  online,
+  onReset,
+  onFocus,
+  now,
+}: Props) {
   // Empty state is nothing at all, not a box announcing its own emptiness.
   if (reports.length === 0) {
     return online ? null : (
@@ -42,13 +52,23 @@ export default function AlertPanel({ reports, online, onReset }: Props) {
           .sort((a, b) => b.created_at.localeCompare(a.created_at))
           .map((r) => (
             <li key={r.edge_id}>
-              <strong>{label(r.type)}</strong>
-              {r.note ? (
-                <span className="note">&ldquo;{r.note}&rdquo;</span>
-              ) : (
-                <span className="seg">{r.edge_id}</span>
-              )}
-              {r.count > 1 && <span className="count">{r.count} reports</span>}
+              <button
+                type="button"
+                className="alert-item"
+                onClick={() => onFocus(r.edge_id)}
+                aria-label={`Show ${label(r.type)} on ${r.edge_id} on the map`}
+              >
+                <strong>{label(r.type)}</strong>
+                {r.note ? (
+                  <span className="note">&ldquo;{r.note}&rdquo;</span>
+                ) : (
+                  <span className="seg">{r.edge_id}</span>
+                )}
+                <span className="meta">
+                  {r.count > 1 && <span className="count">{r.count} reports</span>}
+                  <span className="ttl">{countdown(remaining(r, now))} left</span>
+                </span>
+              </button>
             </li>
           ))}
       </ul>
