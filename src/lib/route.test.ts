@@ -92,6 +92,14 @@ describe('weight', () => {
     expect(weight(edge, base, [crowded('e')])).toBe(100 + REPORT_PENALTY);
   });
 
+  it('keeps the penalty a preference rather than a ban', () => {
+    // Measured against campus.geojson: the median detour around one segment is
+    // 21 m and the 75th percentile 64 m. A penalty far above that makes a
+    // single report behave exactly like a closed edge, which erases both the
+    // confirmation mechanic and the strict toggle. It used to be 1000.
+    expect(REPORT_PENALTY).toBeLessThan(400);
+  });
+
   it('an unreported edge costs its length', () => {
     expect(weight(edge, base, [])).toBe(100);
   });
