@@ -487,6 +487,14 @@ button.theme:hover {
   cursor: pointer;
 }
 
+.alerts .more {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
 .alert-item .meta {
   display: flex;
   flex-wrap: wrap;
