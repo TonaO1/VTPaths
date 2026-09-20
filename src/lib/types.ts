@@ -52,6 +52,10 @@ export interface Report {
 export interface Prefs {
   avoidStairs: boolean;
   avoidSteep: boolean;
+  /** One report closes a segment instead of merely making it expensive. */
+  strict: boolean;
+  /** A `crowded` report closes a segment rather than just penalising it. */
+  avoidCrowds: boolean;
 }
 
 export interface Neighbour {

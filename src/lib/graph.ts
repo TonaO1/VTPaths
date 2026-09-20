@@ -23,10 +23,13 @@ export function weight(edge: Edge, prefs: Prefs, reports: Report[]): number {
   if (prefs.avoidStairs && edge.has_stairs) return Infinity;
   if (prefs.avoidSteep && edge.steep) return Infinity;
 
-  const count = reports.find((r) => r.edge_id === edge.id)?.count ?? 0;
-  if (count >= 2) return Infinity;
-  if (count === 1) return edge.length + REPORT_PENALTY;
-  return edge.length;
+  const report = reports.find((r) => r.edge_id === edge.id);
+  if (!report) return edge.length;
+
+  if (prefs.avoidCrowds && report.type === 'crowded') return Infinity;
+  if (prefs.strict) return Infinity;
+  if (report.count >= 2) return Infinity;
+  return edge.length + REPORT_PENALTY;
 }
 
 /**

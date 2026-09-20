@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildGraph, type CampusGeoJSON } from './graph';
+import { buildGraph, REPORT_PENALTY, weight, type CampusGeoJSON } from './graph';
 import { findRoute } from './route';
-import type { Prefs, Report } from './types';
+import type { Edge, Prefs, Report } from './types';
 
 // Hand-written, deliberately not campus.geojson.
 //
@@ -34,8 +34,14 @@ const fixture: CampusGeoJSON = {
   ],
 };
 
-const allowAll: Prefs = { avoidStairs: false, avoidSteep: false };
-const noStairs: Prefs = { avoidStairs: true, avoidSteep: false };
+const base: Prefs = {
+  avoidStairs: false,
+  avoidSteep: false,
+  strict: false,
+  avoidCrowds: false,
+};
+const allowAll: Prefs = base;
+const noStairs: Prefs = { ...base, avoidStairs: true };
 
 function route(prefs: Prefs, reports: Report[] = [], from = 'A', to = 'B') {
   return findRoute(buildGraph(fixture, reports, prefs), from, to);
@@ -44,6 +50,52 @@ function route(prefs: Prefs, reports: Report[] = [], from = 'A', to = 'B') {
 function report(edge_id: string, count: number): Report {
   return { edge_id, type: 'blocked', count, created_at: '' };
 }
+
+function crowded(edge_id: string): Report {
+  return { edge_id, type: 'crowded', count: 1, created_at: '' };
+}
+
+const edge: Edge = {
+  id: 'e',
+  from: 'A',
+  to: 'B',
+  length: 100,
+  steep: false,
+  has_stairs: false,
+  coords: [],
+};
+
+describe('weight', () => {
+  it('penalises a single report but does not close it', () => {
+    expect(weight(edge, base, [report('e', 1)])).toBe(100 + REPORT_PENALTY);
+  });
+
+  it('strict closes on the first report', () => {
+    expect(weight(edge, { ...base, strict: true }, [report('e', 1)])).toBe(
+      Infinity,
+    );
+  });
+
+  it('avoidCrowds closes a crowded edge', () => {
+    expect(weight(edge, { ...base, avoidCrowds: true }, [crowded('e')])).toBe(
+      Infinity,
+    );
+  });
+
+  it('avoidCrowds leaves other report types penalised, not closed', () => {
+    expect(
+      weight(edge, { ...base, avoidCrowds: true }, [report('e', 1)]),
+    ).toBe(100 + REPORT_PENALTY);
+  });
+
+  it('a crowded edge is only penalised while avoidCrowds is off', () => {
+    expect(weight(edge, base, [crowded('e')])).toBe(100 + REPORT_PENALTY);
+  });
+
+  it('an unreported edge costs its length', () => {
+    expect(weight(edge, base, [])).toBe(100);
+  });
+});
 
 describe('findRoute', () => {
   it('takes the shortest path', () => {
@@ -55,7 +107,7 @@ describe('findRoute', () => {
   });
 
   it('avoidSteep rules out the steep leg', () => {
-    const prefs: Prefs = { avoidStairs: true, avoidSteep: true };
+    const prefs: Prefs = { ...base, avoidStairs: true, avoidSteep: true };
     expect(route(prefs)).toBeNull();
   });
 
@@ -74,6 +126,13 @@ describe('findRoute', () => {
     expect(route(allowAll, [report('ac', 1), report('direct', 1)])).toMatchObject({
       edgeIds: ['direct'],
     });
+  });
+
+  it('strict mode can close the only remaining path', () => {
+    // Stairs rule out `direct`, so A-C-B is the only way through.
+    const onCb = [report('cb', 1)];
+    expect(route(noStairs, onCb)).toMatchObject({ edgeIds: ['ac', 'cb'] });
+    expect(route({ ...noStairs, strict: true }, onCb)).toBeNull();
   });
 
   it('returns null when no path exists', () => {

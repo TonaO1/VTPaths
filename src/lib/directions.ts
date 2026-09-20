@@ -46,6 +46,36 @@ export function feet(metres: number): number {
 }
 
 /**
+ * A conservative rolling pace. 1.1 m/s is below an able walking 1.35 and
+ * inside the range a manual wheelchair user holds on a grade, so the estimate
+ * errs long rather than promising a time the route cannot deliver.
+ */
+const PACE_MS = 1.1;
+
+export function miles(metres: number): number {
+  return metres / 1609.344;
+}
+
+/**
+ * Distance the way people here actually say it. Feet up to a mile, because a
+ * campus walk is a feet-shaped number and "0.16 mi" means nothing to anyone
+ * standing on the Drillfield; miles beyond that, because "7,400 ft" means
+ * nothing either.
+ */
+export function usDistance(metres: number): { value: string; unit: string } {
+  const ft = feet(metres);
+  if (ft < 5280) {
+    return { value: Math.round(ft).toLocaleString('en-US'), unit: 'ft' };
+  }
+  return { value: miles(metres).toFixed(1), unit: 'mi' };
+}
+
+/** Minutes to cover `metres`, never less than one. */
+export function minutes(metres: number): number {
+  return Math.max(1, Math.round(metres / PACE_MS / 60));
+}
+
+/**
  * Turns route geometry into a readable step list. This is a description of a
  * path, not turn-by-turn navigation: there is no GPS, no live position and
  * nothing recalculates as you walk. Turn-by-turn is out of scope

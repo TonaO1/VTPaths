@@ -42,6 +42,10 @@ function PlaceField({
   const [active, setActive] = useState(0);
   const [error, setError] = useState('');
   const box = useRef<HTMLDivElement>(null);
+  // Read by the blur timeout below, which would otherwise close over the
+  // endpoint as it was *before* the click that set it.
+  const current = useRef(value);
+  current.current = value;
 
   useEffect(() => {
     setText(value?.label ?? '');
@@ -146,7 +150,12 @@ function PlaceField({
             // Typed text that was never confirmed against a suggestion is not
             // a destination. Leaving it in the box makes an unset field look
             // set, and the route silently never appears.
-            setTimeout(() => setText(value?.label ?? ''), 150);
+            //
+            // Picking a suggestion blurs the input before the click lands, so
+            // this has to read the endpoint through a ref: the captured
+            // `value` is the one from before the pick, and restoring it blanked
+            // the field of a place the user had just chosen.
+            setTimeout(() => setText(current.current?.label ?? ''), 150);
           }}
           onKeyDown={(e) => {
             if (!open || suggestions.length === 0) return;
@@ -254,11 +263,28 @@ export default function Controls({
         </button>
         <button
           type="button"
+          className={prefs.avoidCrowds ? 'chip chip-on' : 'chip'}
+          aria-pressed={prefs.avoidCrowds}
+          onClick={() => onPrefs({ ...prefs, avoidCrowds: !prefs.avoidCrowds })}
+        >
+          No crowds
+        </button>
+        <button
+          type="button"
           className={show3D ? 'chip chip-on' : 'chip'}
           aria-pressed={show3D}
           onClick={() => onShow3D(!show3D)}
         >
           3D buildings
+        </button>
+        <button
+          type="button"
+          className={prefs.strict ? 'chip chip-on' : 'chip'}
+          aria-pressed={prefs.strict}
+          title="Close a path on its first report, without waiting for a second"
+          onClick={() => onPrefs({ ...prefs, strict: !prefs.strict })}
+        >
+          Avoid all reports
         </button>
       </div>
 

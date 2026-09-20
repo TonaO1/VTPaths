@@ -16,6 +16,7 @@
   --bg: #14161b;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   --scrim: rgba(0, 0, 0, 0.8);
+  --nav-h: 4rem;
 
   font-family: system-ui, -apple-system, sans-serif;
   color-scheme: dark;
@@ -52,7 +53,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-size: 16px;
+  /* Relative to the browser's own setting, so a reader who has scaled text
+     up gets a scaled-up interface rather than a pinned 16px one. */
+  font-size: 100%;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -81,20 +84,43 @@ body {
 
 .stack {
   position: absolute;
-  top: 1.5rem;
+  top: calc(var(--nav-h) + 1rem);
   z-index: 2;
   display: grid;
   gap: 1rem;
-  width: min(360px, calc(100vw - 3rem));
+  width: min(22.5rem, calc(100vw - 3rem));
+  /* Panels used to run off the bottom of the screen with no way to reach them.
+     align-content keeps them their natural height instead of stretching to
+     fill the scroll box. */
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 0.5rem;
 }
 
+/* Stops short of the readout, which floats over the bottom left corner. */
 .stack-left {
   left: 1.5rem;
+  max-height: calc(100dvh - var(--nav-h) - 10rem);
 }
 
 .stack-right {
   right: 1.5rem;
   justify-items: end;
+  max-height: calc(100dvh - var(--nav-h) - 3rem);
+}
+
+.stack::-webkit-scrollbar {
+  width: 0.45rem;
+}
+
+.stack::-webkit-scrollbar-thumb {
+  background: var(--edge);
+  border-radius: 0.25rem;
+}
+
+.stack::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .panel {
@@ -107,30 +133,87 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* ---------- brand ---------- */
+/* ---------- navbar ---------- */
 
-.brand {
+.navbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-left: 0.25rem;
-  text-shadow: 0 2px 20px var(--scrim);
+  height: var(--nav-h);
+  padding: 0 1.5rem;
+  background: var(--panel);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-bottom: 1px solid var(--edge);
 }
 
-.brand h1 {
+.nav-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.nav-brand h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
-.brand p {
-  margin: 0.15rem 0 0;
-  font-size: 0.8rem;
+.nav-brand p {
+  margin: 0;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* ---------- about ---------- */
+
+.about {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 23rem;
+  border-left: 3px solid var(--maroon);
+}
+
+.about p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.about a {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.notice {
+  margin: 0;
+  max-width: 23rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink);
+  border-left: 3px solid var(--alert);
 }
 
 /* ---------- controls ---------- */
@@ -148,8 +231,8 @@ body {
 }
 
 .dot {
-  width: 11px;
-  height: 11px;
+  width: 0.7rem;
+  height: 0.7rem;
   border-radius: 50%;
   flex: none;
 }
@@ -227,7 +310,7 @@ button.theme:hover {
 /* ---------- directions ---------- */
 
 .directions {
-  max-height: min(42vh, 380px);
+  max-height: min(42dvh, 23.75rem);
   overflow-y: auto;
 }
 
@@ -246,6 +329,11 @@ button.theme:hover {
   counter-reset: step;
   display: grid;
   gap: 0.55rem;
+  /* A cross-campus route is twenty steps. Scroll it here rather than letting
+     it push the controls off the bottom of the column. */
+  max-height: 32dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .directions li {
@@ -280,11 +368,23 @@ button.theme:hover {
   color: var(--muted);
 }
 
+/* Bottom-right stacks upward: zoom controls, the fit button, then the toast. */
+.toast {
+  bottom: 12rem;
+}
+
 /* Line the zoom stack up with the compass button: same width, same right
    edge, so the three controls share one vertical axis. */
 .mapboxgl-ctrl-bottom-right {
   right: 1.5rem;
   bottom: 1.5rem;
+}
+
+.mapboxgl-ctrl-bottom-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
 }
 
 .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
@@ -305,6 +405,7 @@ button.theme:hover {
 
 .mapboxgl-ctrl-group button {
   background: transparent;
+  color: var(--ink);
 }
 
 .mapboxgl-ctrl-group button + button {
@@ -344,7 +445,7 @@ button.theme:hover {
 }
 
 .distance {
-  font-size: 5rem;
+  font-size: clamp(2.75rem, 11vw, 5rem);
   font-weight: 200;
   line-height: 0.9;
   letter-spacing: -0.04em;
@@ -352,7 +453,7 @@ button.theme:hover {
 }
 
 .unit {
-  font-size: 2rem;
+  font-size: clamp(1.25rem, 4.5vw, 2rem);
   font-weight: 200;
   color: var(--muted);
 }
@@ -370,10 +471,45 @@ button.theme:hover {
   letter-spacing: 0.1em;
 }
 
+.alert-item {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  justify-items: start;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  padding: 0.5rem 0.6rem;
+  margin: -0.5rem -0.6rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.alert-item .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.alert-item .ttl {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.alert-item:hover,
+.alert-item:focus-visible {
+  background: rgba(127, 127, 127, 0.14);
+}
+
 /* ---------- live reports ---------- */
 
 .alerts {
-  width: min(320px, calc(100vw - 3rem));
+  width: min(20rem, calc(100vw - 3rem));
   display: grid;
   gap: 0.75rem;
 }
@@ -393,8 +529,8 @@ button.theme:hover {
 }
 
 .pulse {
-  width: 9px;
-  height: 9px;
+  width: 0.55rem;
+  height: 0.55rem;
   border-radius: 50%;
   background: var(--alert);
   animation: pulse 1.8s ease-out infinite;
@@ -463,6 +599,40 @@ button.reset:hover {
   border-color: var(--maroon-lift);
 }
 
+/* ---------- toast: the moment the pitch turns on ---------- */
+
+.toast {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 3;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  background: var(--alert);
+  color: #21160f;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  animation: slide-in 0.4s cubic-bezier(0.2, 0.9, 0.3, 1);
+  max-width: min(21.25rem, calc(100vw - 3rem));
+}
+
+.toast-kind {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.toast-body {
+  font-size: 0.95rem;
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* ---------- boot ---------- */
 
 .boot {
@@ -490,12 +660,12 @@ button.reset:hover {
 /* ---------- /report: a phone, at arm's length, mid-sentence ---------- */
 
 .report {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   align-content: start;
   gap: 1.1rem;
   padding: 1.5rem 1.25rem 2.5rem;
-  max-width: 560px;
+  max-width: 35rem;
   margin: 0 auto;
 }
 
@@ -564,36 +734,84 @@ button.reset:hover {
 
 /* ---------- small screens: panels stop floating ---------- */
 
-@media (max-width: 720px) {
+@media (max-width: 45rem) {
   .stack,
   .stack-left,
   .stack-right {
     position: static;
     width: auto;
+    max-height: none;
+    overflow: visible;
+    justify-items: stretch;
+  }
+
+  .navbar {
+    position: static;
+    height: auto;
+    padding: 0.25rem 0 0.5rem;
+    border-bottom: none;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .nav-brand {
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
   }
 
   .app {
     position: static;
     overflow: visible;
     display: grid;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
   }
+
+  /* Reordered for a thumb: the map, then the number it produced, then the
+     controls that change it. DOM order suits the floating desktop layout. */
+  .navbar { order: 0; }
+  .map,
+  .map-disabled { order: 1; }
+  .readout { order: 2; }
+  .stack-left { order: 3; }
+  .stack-right { order: 4; }
+  .legend { order: 5; }
 
   .map,
   .map-disabled {
     position: relative;
-    height: 55vh;
-    border-radius: 16px;
+    height: 52dvh;
+    min-height: 16rem;
+    border-radius: 1rem;
     overflow: hidden;
   }
 
   .readout {
     position: static;
+    padding: 0 0.25rem;
   }
 
-  .distance {
-    font-size: 3.5rem;
+  /* Panels are full width here, so nothing should cap them narrower. */
+  .alerts,
+  .about,
+  .notice,
+  .toast {
+    width: auto;
+    max-width: none;
+  }
+
+  .directions ol {
+    max-height: none;
+  }
+
+  .toast {
+    position: static;
+  }
+
+  .popover-buttons,
+  .report-buttons {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -617,7 +835,7 @@ button.reset:hover {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  max-width: min(420px, calc(100vw - 3rem));
+  max-width: min(26.25rem, calc(100vw - 3rem));
 }
 
 .legend span {
@@ -627,8 +845,8 @@ button.reset:hover {
 }
 
 .sw {
-  width: 16px;
-  height: 4px;
+  width: 1rem;
+  height: 0.25rem;
   border-radius: 2px;
   flex: none;
 }
@@ -639,28 +857,6 @@ button.reset:hover {
   background: repeating-linear-gradient(90deg, #7b3fb8 0 5px, transparent 5px 8px);
 }
 .sw-reported { background: #e5243b; }
-
-button.fit {
-  position: absolute;
-  right: 1.5rem;
-  bottom: 7.75rem;
-  z-index: 3;
-  display: grid;
-  place-content: center;
-  /* Mapbox's control group is 29px plus a 1px border either side. Matching its
-     outer width puts the compass on exactly the same vertical axis. */
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--edge);
-  background: var(--panel);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  color: var(--ink);
-  cursor: pointer;
-  box-shadow: var(--shadow);
-}
 
 .popover {
   display: grid;
@@ -745,12 +941,22 @@ button.close {
   opacity: 0.85;
 }
 
-@media (max-width: 720px) {
-  .legend,
-  button.fit {
+@media (max-width: 45rem) {
+  .legend {
     position: static;
-    margin-top: 0.5rem;
+    margin-top: 0;
   }
+
+  .legend {
+    /* Without clearing the centring transform, the strip hangs off the left
+       edge once it stops being absolutely positioned. */
+    transform: none;
+    left: auto;
+    bottom: auto;
+    max-width: none;
+    justify-content: center;
+  }
+
 }
 
 input.search {
@@ -801,7 +1007,7 @@ input.search:focus-visible {
   border: 1px solid var(--edge);
   border-radius: 12px;
   box-shadow: var(--shadow);
-  max-height: 260px;
+  max-height: 16rem;
   overflow-y: auto;
 }
 

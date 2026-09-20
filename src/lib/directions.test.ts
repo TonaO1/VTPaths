@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeRoute, feet } from './directions';
+import { describeRoute, feet, minutes, usDistance } from './directions';
 
 // ~111 m per 0.001 degree of latitude at this latitude, near enough for a test.
 const N: [number, number] = [-80.42, 37.22];
@@ -34,6 +34,25 @@ describe('describeRoute', () => {
     expect(describeRoute([N, NORTH, EAST]).at(-1)!.instruction).toBe(
       'Arrive at destination',
     );
+  });
+
+  it('estimates minutes at a conservative pace', () => {
+    expect(minutes(336)).toBe(5);
+    expect(minutes(1320)).toBe(20);
+  });
+
+  it('never estimates less than a minute', () => {
+    expect(minutes(0)).toBe(1);
+    expect(minutes(12)).toBe(1);
+  });
+
+  it('reads campus distances in feet, with a separator', () => {
+    expect(usDistance(874)).toEqual({ value: '2,867', unit: 'ft' });
+    expect(usDistance(100)).toEqual({ value: '328', unit: 'ft' });
+  });
+
+  it('switches to miles past a mile', () => {
+    expect(usDistance(3000)).toEqual({ value: '1.9', unit: 'mi' });
   });
 
   it('converts to feet', () => {

@@ -20,6 +20,17 @@ const VT_CENTER: [number, number] = [-80.4176, 37.2296];
 /** Comfortable tap target, converted to metres at the current zoom. */
 const TAP_RADIUS_PX = 16;
 
+/**
+ * The clicked alert, plus a click counter. Keying the flight off the edge id
+ * alone meant clicking the same alert twice did nothing, and keying the effect
+ * off `edges` - a fresh array on every App render - flew the map back to the
+ * last barrier on any unrelated re-render.
+ */
+export interface Focus {
+  edgeId: string;
+  nonce: number;
+}
+
 type LineFeature = {
   type: 'Feature';
   properties: Record<string, unknown>;
@@ -34,7 +45,10 @@ interface Props {
   to?: Node;
   theme: Theme;
   show3D: boolean;
+  /** Edge to fly to and ring, set by clicking a live alert. */
+  focus: Focus | null;
   onPickEdge: (edgeId: string) => void;
+  onLocate: (point: [number, number]) => void;
 }
 
 function toLines(edges: Edge[], reports: Report[]): {
@@ -63,6 +77,57 @@ function emptyLine(): LineFeature {
   return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } };
 }
 
+/**
+ * Padding that keeps a fitted route clear of the floating panels, as a
+ * fraction of the canvas. Fixed pixels do not survive a phone: 420 left plus
+ * 380 right is wider than the screen, and Mapbox cannot fit anything into
+ * negative space. Below the breakpoint the panels sit under the map instead of
+ * over it, so the route only needs a thin margin.
+ */
+function fitPadding(m: mapboxgl.Map): mapboxgl.PaddingOptions {
+  const { clientWidth: w, clientHeight: h } = m.getContainer();
+  const floating = w >= 720;
+  return {
+    top: Math.round(h * (floating ? 0.15 : 0.1)),
+    bottom: Math.round(h * (floating ? 0.25 : 0.1)),
+    left: Math.round(w * (floating ? 0.28 : 0.08)),
+    right: Math.round(w * (floating ? 0.26 : 0.08)),
+  };
+}
+
+/**
+ * Zoom-to-campus, registered with Mapbox instead of floated over the map at a
+ * hard-coded offset. The offset silently broke the moment a second control
+ * joined the same corner; letting Mapbox stack it cannot.
+ */
+function fitControl(onFit: () => void): mapboxgl.IControl {
+  let container: HTMLDivElement | null = null;
+  return {
+    onAdd() {
+      container = document.createElement('div');
+      container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.title = 'Zoom to the whole campus';
+      button.setAttribute('aria-label', 'Zoom to the whole campus');
+      button.innerHTML =
+        '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+        '<path d="M15.4 8.6 10.9 10.9 8.6 15.4 13.1 13.1z" fill="currentColor"/>' +
+        '</svg>';
+      button.addEventListener('click', onFit);
+
+      container.appendChild(button);
+      return container;
+    },
+    onRemove() {
+      container?.remove();
+      container = null;
+    },
+  };
+}
+
 function boundsOf(coords: [number, number][]): mapboxgl.LngLatBounds {
   return coords.reduce(
     (b, c) => b.extend(c),
@@ -78,7 +143,9 @@ export default function Map({
   to,
   theme,
   show3D,
+  focus,
   onPickEdge,
+  onLocate,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -86,6 +153,9 @@ export default function Map({
   const endMarker = useRef<mapboxgl.Marker | null>(null);
   const pick = useRef(onPickEdge);
   pick.current = onPickEdge;
+  const locate = useRef(onLocate);
+  locate.current = onLocate;
+  const fit = useRef<() => void>(() => {});
   // The click handler is registered once; keep it reading current edges.
   const graph = useRef(edges);
   graph.current = edges;
@@ -111,10 +181,24 @@ export default function Map({
     });
     map.current = m;
 
+    m.addControl(fitControl(() => fit.current()), 'bottom-right');
     m.addControl(
       new mapboxgl.NavigationControl({ showCompass: false, visualizePitch: false }),
       'bottom-right',
     );
+
+    // Snapping the fix onto the network is App's job; this only reports where
+    // the browser thinks we are. trackUserLocation would keep re-firing and
+    // stomp on a start the user picked by hand.
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+      showUserLocation: true,
+    });
+    m.addControl(geolocate, 'bottom-right');
+    geolocate.on('geolocate', (ev: GeolocationPosition) => {
+      locate.current([ev.coords.longitude, ev.coords.latitude]);
+    });
 
     // setStyle destroys every custom source and layer, so this has to be
     // re-runnable and hang off style.load rather than load.
@@ -164,6 +248,19 @@ export default function Map({
         paint: {
           'line-color': '#e5243b',
           'line-width': ['case', ['get', 'blocked'], 7, 5],
+        },
+      });
+
+      m.addLayer({
+        id: 'focus',
+        type: 'line',
+        source: 'network',
+        filter: ['==', ['get', 'id'], ''],
+        paint: {
+          'line-color': '#ffd166',
+          'line-width': 12,
+          'line-opacity': 0.55,
+          'line-blur': 2,
         },
       });
 
@@ -291,11 +388,29 @@ export default function Map({
 
     // Panels float over the map, so keep the route clear of them.
     m.fitBounds(boundsOf(route.coords), {
-      padding: { top: 120, bottom: 200, left: 420, right: 380 },
+      padding: fitPadding(m),
       maxZoom: 18,
       duration: 900,
     });
   }, [route, ready]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !m.getLayer('focus')) return;
+
+    m.setFilter('focus', ['==', ['get', 'id'], focus?.edgeId ?? '']);
+    if (!focus) return;
+
+    const edge = graph.current.find((e) => e.id === focus.edgeId);
+    if (!edge) return;
+
+    // Zoom close enough to see the segment itself, not the block it sits on.
+    m.fitBounds(boundsOf(edge.coords), {
+      padding: fitPadding(m),
+      maxZoom: 18.5,
+      duration: 900,
+    });
+  }, [focus, ready]);
 
   useEffect(() => {
     const m = map.current;
@@ -312,11 +427,13 @@ export default function Map({
       : null;
   }, [from, to]);
 
+  fit.current = fitCampus;
+
   function fitCampus() {
     const m = map.current;
     if (!m || edges.length === 0) return;
     m.fitBounds(boundsOf(edges.flatMap((e) => e.coords)), {
-      padding: { top: 100, bottom: 160, left: 400, right: 360 },
+      padding: fitPadding(m),
       duration: 800,
     });
   }
@@ -332,12 +449,6 @@ export default function Map({
   return (
     <>
       <div ref={container} className="map" />
-      <button className="fit" onClick={fitCampus} title="Zoom to the whole campus" aria-label="Zoom to the whole campus">
-        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-          <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M15.4 8.6 10.9 10.9 8.6 15.4 13.1 13.1z" fill="currentColor" />
-        </svg>
-      </button>
       <div className="legend panel">
         <span><i className="sw sw-route" />Route</span>
         <span><i className="sw sw-steep" />Steep &gt;1:12</span>
