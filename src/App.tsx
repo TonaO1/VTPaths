@@ -35,6 +35,7 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
   const [toast, setToast] = useState<Report | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
+  const [show3D, setShow3D] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [about, setAbout] = useState(false);
@@ -119,6 +120,7 @@ export default function App() {
         from={from ? graph.nodes.get(from.nodeId) : undefined}
         to={to ? graph.nodes.get(to.nodeId) : undefined}
         theme={theme}
+        show3D={show3D}
         focus={focus}
         onPickEdge={setPicked}
         onLocate={(point) => {
@@ -170,6 +172,8 @@ export default function App() {
           onFrom={setFrom}
           onTo={setTo}
           onPrefs={setPrefs}
+          show3D={show3D}
+          onShow3D={setShow3D}
         />
 
         {picked && (
