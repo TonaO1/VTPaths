@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import About from './components/About';
 import AlertPanel, { label } from './components/AlertPanel';
 import Controls, { type Endpoint } from './components/Controls';
@@ -66,7 +66,14 @@ export default function App() {
 
   // Expired reports stop routing, stop drawing and stop being announced, so
   // everything below works from the live set rather than the raw table.
-  const reports = activeReports(allReports, now);
+  //
+  // Memoised for its identity, not its cost: the toast effect below keys off
+  // this array, and a fresh one every render meant the effect re-ran every
+  // render, cancelling the dismiss timer before it could ever fire.
+  const reports = useMemo(
+    () => activeReports(allReports, now),
+    [allReports, now],
+  );
 
   // Announce barriers that arrived after this client loaded. The first payload
   // seeds the baseline, so opening the page mid-demo does not fire five toasts.

@@ -22,6 +22,13 @@ export function label(type: string): string {
   return LABELS[type as ReportType] ?? type;
 }
 
+/**
+ * Newest few only. The count in the heading is the real total; a list that
+ * grows with every report would eat the screen by the fourth judge, and the
+ * ones worth reading are the ones that just landed.
+ */
+const MAX_VISIBLE = 4;
+
 export default function AlertPanel({
   reports,
   online,
@@ -50,6 +57,7 @@ export default function AlertPanel({
       <ul>
         {[...reports]
           .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .slice(0, MAX_VISIBLE)
           .map((r) => (
             <li key={r.edge_id}>
               <button
@@ -72,6 +80,12 @@ export default function AlertPanel({
             </li>
           ))}
       </ul>
+
+      {reports.length > MAX_VISIBLE && (
+        <p className="more">
+          and {reports.length - MAX_VISIBLE} more on the map
+        </p>
+      )}
 
       {/* Demo-critical: the map fills with dead edges by the fourth judge. */}
       <button className="reset" onClick={onReset}>
